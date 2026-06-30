@@ -36,10 +36,12 @@ const g = (...path) => {
   return c;
 };
 const sid = (g("session_id") || "").trim();
-if (sid) {
+// Guard the join: sid comes from the statusline payload — reject anything that
+// isn't hex+hyphens (≤64) so a crafted session_id can't escape stateDir via ../.
+if (sid && /^[0-9a-fA-F-]{1,64}$/.test(sid)) {
   try {
     mkdirSync(stateDir, { recursive: true });
-    writeFileSync(join(stateDir, sid + ".json"), raw, "utf8");
+    writeFileSync(join(stateDir, sid + ".json"), raw, { encoding: "utf8", mode: 0o600 });
   } catch { /* never break the status line */ }
 }
 
@@ -142,7 +144,7 @@ const s7 = fmtRl(roundPct(g("rate_limits", "seven_day", "used_percentage")), g("
 if (s7) rlParts.push(s7);
 const rateLimitStr = rlParts.join(" | ");
 
-// --- Git (single porcelain call; -C avoids changing cwd) ---
+// --- Git (porcelain status + rev-parse; -C avoids changing cwd) ---
 const git = (...args) => {
   try {
     return execFileSync("git", ["-C", currentDir, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
@@ -165,20 +167,20 @@ if (currentDir && isDir(currentDir)) {
         if (xy[1] !== ".") modified++;
       }
     }
-    if (branch === "(detached)") {
-      const h = git("rev-parse", "--short", "HEAD");
-      if (h) branch = h.trim();
+    const rp = git("rev-parse", "--show-toplevel", "--short", "HEAD");
+    if (rp) {
+      const rpLines = rp.split("\n");
+      const top = rpLines[0] && rpLines[0].trim();
+      if (top) repoRoot = top;
+      if (branch === "(detached)" && rpLines[1]) branch = rpLines[1].trim();
     }
     gitStr = branch;
     if (staged) gitStr += ` ${GREEN}+${staged}${RESET}`;
     if (modified) gitStr += ` ${YELLOW}~${modified}${RESET}`;
-    const top = git("rev-parse", "--show-toplevel");
-    if (top && top.trim()) repoRoot = top.trim();
   }
 }
 
 const dirDisplay = repoRoot || "";
-const worktreeStr = worktree ? worktree : "no worktree";
 
 // --- Output (two lines); only include segments that have data ---
 const p1 = [`🤖 ${model}`, `🧠 ${usageSeg}`, `💰 ${costStr}`];
@@ -186,7 +188,7 @@ if (rateLimitStr) p1.push(`⏱️ ${rateLimitStr}`);
 const line1 = p1.join(" | ");
 
 const p2 = [`📁 ${dirDisplay}`];
-if (worktree) p2.push(`🌳 ${worktreeStr}`);
+if (worktree) p2.push(`🌳 ${worktree}`);
 p2.push(`🌿 ${gitStr}`);
 const line2 = p2.join(" | ");
 

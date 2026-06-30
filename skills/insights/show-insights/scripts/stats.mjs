@@ -83,13 +83,11 @@ function walkGlob(dir, rest, out) {
     return;
   }
   if (seg === "**") {
-    // ** matches zero or more directory levels (Python recursive=True semantics).
-    // Try matching the rest at this level (zero dirs)...
-    walkGlob(dir, remaining, out);
-    // ...and recurse into every subdirectory keeping ** in place.
+    // ** matches zero or more directory levels (recursive=True semantics).
+    walkGlob(dir, remaining, out); // match at this level (zero dirs)...
     for (const e of entries) {
       if (e.isDirectory()) {
-        walkGlob(path.join(dir, e.name), rest, out);
+        walkGlob(path.join(dir, e.name), rest, out); // ...and recurse keeping ** in place.
       }
     }
     return;
@@ -339,8 +337,8 @@ function find_transcript(sid) {
   return hits.length ? hits[0] : null;
 }
 
-function session_totals(sid) {
-  const base = parse_transcript(find_transcript(sid));
+function session_totals(sid, mainPath) {
+  const base = parse_transcript(mainPath || find_transcript(sid));
   for (const p of globSync(path.join(PROJECTS_DIR, "*", sid, "**", "*.jsonl"))) {
     const s = parse_transcript(p);
     base.input_tokens += s.input_tokens;
@@ -438,22 +436,16 @@ function parse_transcript(p) {
         }
       }
     }
-    const model = msg.model;
-    let usage = msg.usage || {};
-    if (typeof usage !== "object" || Array.isArray(usage) || usage === null) usage = {};
-    const i = intOr0(usage.input_tokens);
-    const o_ = intOr0(usage.output_tokens);
-    const cr = intOr0(usage.cache_read_input_tokens);
-    const cc = intOr0(usage.cache_creation_input_tokens);
-    if (model === "<synthetic>" || (i === 0 && o_ === 0 && cr === 0 && cc === 0)) continue;
-    r.input_tokens += i;
-    r.output_tokens += o_;
-    r.cache_read_tokens += cr;
-    r.cache_creation_tokens += cc;
-    if (model && (last_model_epoch === null || (ts !== null && ts >= (last_model_epoch ?? -1)))) {
+    const tk = _msg_tokens(msg);
+    if (!tk) continue;
+    r.input_tokens += tk.i;
+    r.output_tokens += tk.o;
+    r.cache_read_tokens += tk.cr;
+    r.cache_creation_tokens += tk.cc;
+    if (tk.model && (last_model_epoch === null || (ts !== null && ts >= (last_model_epoch ?? -1)))) {
       if (ts !== null) {
         last_model_epoch = ts;
-        r.last_model = model;
+        r.last_model = tk.model;
       }
     }
   }
@@ -463,6 +455,18 @@ function parse_transcript(p) {
 function intOr0(v) {
   const n = parseInt(v, 10);
   return Number.isNaN(n) ? 0 : n;
+}
+
+// Extract token usage from an assistant message; null for synthetic/zero rows.
+function _msg_tokens(msg) {
+  const usage = msg.usage && typeof msg.usage === "object" && !Array.isArray(msg.usage) && msg.usage !== null
+    ? msg.usage : {};
+  const i = intOr0(usage.input_tokens);
+  const o = intOr0(usage.output_tokens);
+  const cr = intOr0(usage.cache_read_input_tokens);
+  const cc = intOr0(usage.cache_creation_input_tokens);
+  if (msg.model === "<synthetic>" || (i === 0 && o === 0 && cr === 0 && cc === 0)) return null;
+  return { i, o, cr, cc, model: msg.model };
 }
 
 // ---- priors (pre-execution cost estimation) ----
@@ -478,17 +482,16 @@ const PRICE = {
 };
 const DEFAULT_PRICE_KEY = "opus";
 
+// Strip the mcp__<server>__ prefix so namespaced and bare forms classify alike.
+const _canon_tool = (n) => n.replace(/^mcp__.*?__/, "");
+
 const ORCH_TOOLS = new Set([
   "Agent", "Task", "TaskCreate", "TaskUpdate", "TaskStop", "TaskGet", "TaskList", "TaskOutput",
 ]);
-const EDIT_TOOLS = new Set([
-  "Edit", "Write", "MultiEdit", "NotebookEdit", "ctx_edit", "mcp__lean-ctx__ctx_edit",
-]);
+const EDIT_TOOLS = new Set(["Edit", "Write", "MultiEdit", "NotebookEdit", "ctx_edit"]);
 const READ_TOOLS = new Set([
   "Read", "Grep", "Glob", "LS", "WebFetch", "WebSearch",
   "ctx_read", "ctx_search", "ctx_tree", "ctx_overview",
-  "mcp__lean-ctx__ctx_read", "mcp__lean-ctx__ctx_search",
-  "mcp__lean-ctx__ctx_tree", "mcp__lean-ctx__ctx_overview",
 ]);
 const PLAN_TOOLS = new Set(["EnterPlanMode", "ExitPlanMode"]);
 const TEST_RE = new RegExp(
@@ -561,7 +564,7 @@ function segment_transcript(p) {
       for (const b of content) {
         if (!(b && typeof b === "object" && b.type === "tool_use")) continue;
         const name = b.name || "?";
-        cur.tools.add(name);
+        cur.tools.add(_canon_tool(name));
         const inp = b.input && typeof b.input === "object" && !Array.isArray(b.input) ? b.input : {};
         if (name === "Skill") {
           const sk = inp.command || inp.skill || "";
@@ -571,20 +574,14 @@ function segment_transcript(p) {
         }
       }
     }
-    const model = msg.model;
-    let usage = msg.usage;
-    if (typeof usage !== "object" || Array.isArray(usage) || usage === null) usage = {};
-    const i = intOr0(usage.input_tokens);
-    const o_ = intOr0(usage.output_tokens);
-    const cr = intOr0(usage.cache_read_input_tokens);
-    const cc = intOr0(usage.cache_creation_input_tokens);
-    if (model === "<synthetic>" || (i === 0 && o_ === 0 && cr === 0 && cc === 0)) continue;
-    cur.in += i;
-    cur.out += o_;
-    cur.cr += cr;
-    cur.cc += cc;
+    const tk = _msg_tokens(msg);
+    if (!tk) continue;
+    cur.in += tk.i;
+    cur.out += tk.o;
+    cur.cr += tk.cr;
+    cur.cc += tk.cc;
     cur.api_turns += 1;
-    if (model) cur.model = model;
+    if (tk.model) cur.model = tk.model;
   }
   return segs;
 }
@@ -621,7 +618,7 @@ function setIsSubset(a, b) {
   return true;
 }
 
-function _build_priors() {
+function _build_priors(files) {
   const cats = {};
   const existing_cost = {};
   if (isFile(STATS_CSV)) {
@@ -636,7 +633,7 @@ function _build_priors() {
     }
   }
   let n_sessions = 0;
-  for (const p of globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"))) {
+  for (const p of (files || globSync(path.join(PROJECTS_DIR, "*", "*.jsonl")))) {
     const sid = path.basename(p, ".jsonl");
     if (sid === ZERO_UUID) continue;
     const segs = segment_transcript(p);
@@ -725,13 +722,12 @@ function _build_priors() {
     price_per_mtok,
     categories,
   };
-  fs.writeFileSync(PRIORS_JSON, JSON.stringify(priors, null, 2), "utf-8");
+  fs.writeFileSync(PRIORS_JSON, JSON.stringify(priors, null, 2), { encoding: "utf-8", mode: 0o600 });
   return priors;
 }
 
 function round4(x) {
-  // Python round() uses banker's rounding; differences at 4dp are negligible for
-  // the values here, but match round-half-to-even to be faithful.
+  // Match Python round-half-to-even.
   return roundHalfEven(x, 4);
 }
 
@@ -803,23 +799,24 @@ function _latest_context() {
 }
 
 function _priors_stale(max_age_days = 7) {
-  if (!isFile(PRIORS_JSON)) return true;
+  const files = globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"));
+  if (!isFile(PRIORS_JSON)) return { stale: true, files };
   const pj = getmtime(PRIORS_JSON);
-  if (Date.now() / 1000 - pj > max_age_days * 86400) return true;
-  let newest = 0;
-  for (const p of globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"))) {
-    const m = getmtime(p);
-    if (m > newest) newest = m;
-  }
-  return newest > pj;
+  if (Date.now() / 1000 - pj > max_age_days * 86400) return { stale: true, files };
+  const newest = files.reduce((mx, p) => Math.max(mx, getmtime(p)), 0);
+  return { stale: newest > pj, files };
 }
 
 function cmd_estimate(args) {
   let p;
-  if (!args.no_refresh && _priors_stale()) {
-    printErr("refreshing priors...");
-    p = _build_priors();
-  } else {
+  if (!args.no_refresh) {
+    const { stale, files } = _priors_stale();
+    if (stale) {
+      printErr("refreshing priors...");
+      p = _build_priors(files);
+    }
+  }
+  if (p === undefined) {
     if (!isFile(PRIORS_JSON)) {
       printErr("no priors.json — run: node stats.mjs priors");
       process.exit(1);
@@ -861,7 +858,7 @@ function cmd_estimate(args) {
     print(
       `input re-read floor: $${fixed(floor, 2)}  ` +
         `(${_abbr(ctx_tok)} ctx x ${fixed(turns, 0)} turns @ $${crp}/MTok cache-read` +
-        `${model ? ", " + (model || "opus") : ""})`
+        `${model ? ", " + model : ""})`
     );
   }
   print(`\nestimate: $${fixed(cost.p50, 2)}-$${fixed(cost.p90, 2)}`);
@@ -889,7 +886,7 @@ function cmd_record() {
     process.exit(0);
   }
   const sid = data.session_id;
-  if (!sid || sid === ZERO_UUID) process.exit(0);
+  if (!sid || sid === ZERO_UUID || !/^[0-9a-fA-F-]{1,64}$/.test(sid)) process.exit(0);
   const state = read_cost_state(sid);
   if (!state || state.cost === null || state.cost === undefined || state.cost === "") process.exit(0);
   const t = session_totals(sid);
@@ -939,7 +936,7 @@ function jsonCompact(obj) {
 function _archive(sid, raw) {
   try {
     const rec = { recorded_at: now_local(), session_id: sid, statusline: raw };
-    fs.appendFileSync(SESSIONS_JSONL, JSON.stringify(rec) + "\n", "utf-8");
+    fs.appendFileSync(SESSIONS_JSONL, JSON.stringify(rec) + "\n", { encoding: "utf-8", mode: 0o600 });
   } catch {
     /* ignore */
   }
@@ -948,7 +945,7 @@ function _archive(sid, raw) {
 function _prepend_row(row) {
   const line = row.map((x) => _csv_field(x)).join(",");
   if (!isFile(STATS_CSV)) {
-    fs.writeFileSync(STATS_CSV, HEADER + "\n" + line + "\n", "utf-8");
+    fs.writeFileSync(STATS_CSV, HEADER + "\n" + line + "\n", { encoding: "utf-8", mode: 0o600 });
     return;
   }
   let text = fs.readFileSync(STATS_CSV, "utf-8");
@@ -963,12 +960,16 @@ function _prepend_row(row) {
     rest = lines.length > 1 ? lines.slice(1) : [];
   }
   const out = [HEADER, line, ...rest.filter((l) => l.trim())];
-  fs.writeFileSync(STATS_CSV, out.join("\n") + "\n", "utf-8");
+  fs.writeFileSync(STATS_CSV, out.join("\n") + "\n", { encoding: "utf-8", mode: 0o600 });
 }
 
 // ---- backfill ----
 
-function cmd_backfill() {
+// Rebuild stats.csv from all transcripts. Folds in any lingering cost-state
+// snapshot (a session whose SessionEnd hook hasn't projected it yet) so its
+// cost/duration/lines/rate-limits/context land in the row. `excludeSid` (the
+// active session) is skipped entirely — its transcript is mid-flight.
+function _rebuild_stats_csv(excludeSid) {
   const existing = {};
   if (isFile(STATS_CSV)) {
     const text = fs.readFileSync(STATS_CSV, "utf-8");
@@ -990,13 +991,20 @@ function cmd_backfill() {
   let with_cost = 0;
   for (const p of globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"))) {
     const sid = path.basename(p, ".jsonl");
-    if (sid === ZERO_UUID) continue;
+    if (sid === ZERO_UUID || sid === excludeSid) continue;
     seen.add(sid);
     const ex = existing[sid] || {};
-    const t = session_totals(sid);
-    const cost = (ex.total_cost_usd || "").trim();
+    const t = session_totals(sid, p);
+    const st = read_cost_state(sid);
+    const stCost = st && st.cost !== null && st.cost !== undefined && st.cost !== "" ? String(st.cost) : "";
+    const cost = (ex.total_cost_usd || "").trim() || stCost;
     if (cost) with_cost += 1;
-    let dur = _inum(fwd(ex, "duration_ms"));
+    const fbNum = (exCol, stKey) => _inum(fwd(ex, exCol)) || (st ? _inum(st[stKey]) : 0);
+    const fbRaw = (exCol, stKey) => {
+      const ev = fwd(ex, exCol);
+      return ev !== "" ? ev : st ? _blank(st[stKey]) : "";
+    };
+    let dur = fbNum("duration_ms", "duration_ms");
     if (!dur && t.start_epoch && t.end_epoch) {
       dur = Math.trunc((t.end_epoch - t.start_epoch) * 1000);
     }
@@ -1014,16 +1022,16 @@ function cmd_backfill() {
       output_tokens: t.output_tokens,
       cache_read_tokens: t.cache_read_tokens,
       cache_creation_tokens: t.cache_creation_tokens,
-      model_id: fwd(ex, "model_id") || t.last_model,
-      model_display_name: fwd(ex, "model_display_name"),
+      model_id: fwd(ex, "model_id") || (st ? st.model_id : "") || t.last_model,
+      model_display_name: fwd(ex, "model_display_name") || (st ? st.model_display_name : ""),
       duration_ms: dur,
-      api_duration_ms: _inum(fwd(ex, "api_duration_ms")),
-      lines_added: _inum(fwd(ex, "lines_added")),
-      lines_removed: _inum(fwd(ex, "lines_removed")),
-      rl_5h_pct: fwd(ex, "rl_5h_pct"),
-      rl_7d_pct: fwd(ex, "rl_7d_pct"),
-      context_pct: fwd(ex, "context_pct"),
-      context_window_size: fwd(ex, "context_window_size"),
+      api_duration_ms: fbNum("api_duration_ms", "api_duration_ms"),
+      lines_added: fbNum("lines_added", "lines_added"),
+      lines_removed: fbNum("lines_removed", "lines_removed"),
+      rl_5h_pct: fbRaw("rl_5h_pct", "rl_5h_pct"),
+      rl_7d_pct: fbRaw("rl_7d_pct", "rl_7d_pct"),
+      context_pct: fbRaw("context_pct", "context_pct"),
+      context_window_size: fbRaw("context_window_size", "context_window_size"),
       turns: t.turns,
       tool_calls: t.tool_calls,
       start_epoch: t.start_epoch ? Math.trunc(t.start_epoch) : "",
@@ -1031,7 +1039,7 @@ function cmd_backfill() {
     });
   }
   for (const [sid, ex] of Object.entries(existing)) {
-    if (seen.has(sid)) continue;
+    if (seen.has(sid) || sid === excludeSid) continue;
     if ((ex.total_cost_usd || "").trim()) with_cost += 1;
     const r = {};
     for (const c of COLS) r[c] = ex[c] || "";
@@ -1047,8 +1055,12 @@ function cmd_backfill() {
   for (const r of rows) {
     out_lines.push(COLS.map((c) => _csv_field(c in r ? r[c] : "")).join(","));
   }
-  fs.writeFileSync(STATS_CSV, out_lines.join("\n") + "\n", "utf-8");
-  print(JSON.stringify({ sessions: rows.length, with_cost, no_cost: rows.length - with_cost }));
+  fs.writeFileSync(STATS_CSV, out_lines.join("\n") + "\n", { encoding: "utf-8", mode: 0o600 });
+  return { sessions: rows.length, with_cost, no_cost: rows.length - with_cost };
+}
+
+function cmd_backfill() {
+  print(JSON.stringify(_rebuild_stats_csv(null)));
 }
 
 function stableSort(arr, cmp) {
@@ -1110,12 +1122,12 @@ function _render_suggestions(sg) {
   return `<div class='sgs'>${rows}</div>`;
 }
 
-const IMPROVE_PY = _sibling_skill("improve-insights", "improve.mjs");
+const IMPROVE_MJS = _sibling_skill("improve-insights", "improve.mjs");
 
 function _fetch_roadmap() {
-  if (!isFile(IMPROVE_PY)) return null;
+  if (!isFile(IMPROVE_MJS)) return null;
   try {
-    const out = execFileSync(process.execPath, [IMPROVE_PY, "roadmap", "--json"], {
+    const out = execFileSync(process.execPath, [IMPROVE_MJS, "roadmap", "--json"], {
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 60000,
       encoding: "utf-8",
@@ -1255,7 +1267,51 @@ function jsWeekdayPy(d) {
   return (d.getDay() + 6) % 7;
 }
 
+// ---- report freshness ----
+// Active session = newest-touched transcript or cost-state file within a live
+// window (statusline renders are frequent during active use). Cold shell after
+// session close → null, so a hook-missed session's lingering cost-state still
+// integrates. getmtime returns seconds.
+
+function _active_sid() {
+  const WIN = 180;
+  const now = Date.now() / 1000;
+  let newest = 0, newestSid = null;
+  for (const p of globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"))) {
+    const m = getmtime(p);
+    if (m > newest) { newest = m; newestSid = path.basename(p, ".jsonl"); }
+  }
+  for (const p of globSync(path.join(STATE_DIR, "*.json"))) {
+    const m = getmtime(p);
+    if (m > newest) { newest = m; newestSid = path.basename(p, ".json"); }
+  }
+  return newestSid && now - newest < WIN ? newestSid : null;
+}
+
+// Rebuild stats.csv before rendering if any non-excluded transcript or
+// cost-state file is newer than stats.csv (or stats.csv is missing). Excludes
+// the active session so a mid-flight transcript never pollutes the report.
+function _ensure_fresh() {
+  const active = _active_sid();
+  const csvMtime = isFile(STATS_CSV) ? getmtime(STATS_CSV) : 0;
+  let need = csvMtime === 0;
+  if (!need) {
+    for (const p of globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"))) {
+      if (path.basename(p, ".jsonl") === active) continue;
+      if (getmtime(p) > csvMtime) { need = true; break; }
+    }
+    if (!need) {
+      for (const p of globSync(path.join(STATE_DIR, "*.json"))) {
+        if (path.basename(p, ".json") === active) continue;
+        if (getmtime(p) > csvMtime) { need = true; break; }
+      }
+    }
+  }
+  if (need) _rebuild_stats_csv(active);
+}
+
 function cmd_report() {
+  _ensure_fresh();
   if (!isFile(STATS_CSV)) {
     print(`stats.csv not found at ${STATS_CSV}. Run \`node ${SCRIPT} backfill\` first.`);
     process.exit(1);
@@ -1500,14 +1556,22 @@ function statline(items){var cells='';items.forEach(function(it){cells+="<div cl
 function svgRateTrend(sessions){
   var rl=sessions.filter(function(s){return s.r5>0||s.r7>0;}).sort(function(a,b){return a.ts<b.ts?-1:a.ts>b.ts?1:0;});
   if(!rl.length)return '<p class="muted">No rate-limit data yet.</p>';
-  var W=1000,H=220,P=34,n=rl.length;
+  var W=1000,H=220,P=38,n=rl.length;
   var s=scaler(0,Math.max(n-1,1),0,100,W,H,P);
-  var d5=pathD(rl.map(function(s2,i){return [s[0](i),s[1](s2.r5)];}),'#2f8fb0',false,'none',2);
-  var d7=pathD(rl.map(function(s2,i){return [s[0](i),s[1](s2.r7)];}),'var(--ac)',false,'none',2);
-  var th80=pathD([[s[0](0),s[1](80)],[s[0](n-1),s[1](80)]],'var(--ink-soft)',true,'none',1);
-  var ceiling=pathD([[s[0](0),s[1](100)],[s[0](n-1),s[1](100)]],'var(--ink-faint)',false,'none',0.6);
+  var fx=s[0],fy=s[1];
+  var d5=pathD(rl.map(function(s2,i){return [fx(i),fy(s2.r5)];}),'#2f8fb0',false,'none',2);
+  var d7=pathD(rl.map(function(s2,i){return [fx(i),fy(s2.r7)];}),'var(--ac)',false,'none',2);
+  var th80=pathD([[fx(0),fy(80)],[fx(n-1),fy(80)]],'var(--ink-soft)',true,'none',1);
+  var ceiling=pathD([[fx(0),fy(100)],[fx(n-1),fy(100)]],'var(--ink-faint)',false,'none',0.6);
+  var axes="<line class='axis' x1='"+P+"' y1='"+(H-P)+"' x2='"+(W-P)+"' y2='"+(H-P)+"'/>"+
+          "<line class='axis' x1='"+P+"' y1='"+P+"' x2='"+P+"' y2='"+(H-P)+"'/>";
+  var yticks=[0,25,50,75,100].map(function(v){return "<text x='"+(P-6)+"' y='"+(fy(v)+4).toFixed(1)+"' text-anchor='end' fill='var(--ink-faint)'>"+v+"%</text>";}).join('');
+  var x0=esc(rl[0].ts.slice(5,10)),xn=esc(rl[n-1].ts.slice(5,10));
+  var xlabels="<text x='"+P+"' y='"+(H-P+16)+"' fill='var(--ink-faint)'>"+x0+"</text>"+
+             "<text x='"+(W-P)+"' y='"+(H-P+16)+"' text-anchor='end' fill='var(--ink-faint)'>"+xn+"</text>"+
+             "<text x='"+(W-P)+"' y='"+(P-10)+"' text-anchor='end' fill='var(--ink-faint)'>% used →</text>";
   var leg="<div class='legend' style='margin:6px 0'><span class='lg-item'><span class='lg-swatch' style='background:#2f8fb0'></span>5h window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--ac)'></span>7d window</span></div>";
-  return leg+svgWrap(W,H,ceiling+th80+d5+d7,'chart');
+  return leg+svgWrap(W,H,axes+ceiling+th80+yticks+xlabels+d5+d7,'chart');
 }
 function renderRateLimits(sessions){
   var rl=sessions.filter(function(s){return s.r5>0||s.r7>0;});
@@ -1771,7 +1835,9 @@ document.addEventListener('DOMContentLoaded',main);
 
 function _render(c) {
   const secs = _build_sessions_json(c.sessions);
-  const sessions_json = JSON.stringify(secs);
+  // Escape < so a crafted field (cwd, tool/skill name from a transcript) can't
+  // break out of the <script> context. JSON allows \u escapes inside strings.
+  const sessions_json = JSON.stringify(secs).replace(/</g, "\\u003c");
   const roadmap_html = _render_suggestions(_fetch_roadmap());
   const gen = fmtLocal(new Date());
   const style = _STYLE + _RANGE_CSS;
@@ -2114,7 +2180,7 @@ function cmd_install(args) {
   }
 
   if (sl_action === "install") {
-    const src = path.join(SKILL_DIR, "statusline", "statusline.mjs");
+    const src = path.join(SKILL_DIR, "scripts", "statusline.mjs");
     if (isFile(src)) {
       const dest = path.join(CLAUDE_DIR, "statusline.mjs");
       fs.writeFileSync(dest, fs.readFileSync(src, "utf-8"), "utf-8");
@@ -2137,7 +2203,7 @@ function cmd_install(args) {
 
   print("\nCapture contract: your statusline must write the raw statusline JSON to");
   print(`  ${STATE_DIR}/<session_id>.json   (last write per session wins)`);
-  print("See INSTALL.md and statusline/ reference snippets. Without it, the report");
+  print("See INSTALL.md and scripts/statusline.mjs reference. Without it, the report");
   print("still renders from transcripts only (cost/duration/lines blank).");
   print("\nDone. Generate a report:  node " + stats_abs + " report");
 }

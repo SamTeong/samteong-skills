@@ -1,6 +1,6 @@
 # samteong-skills
 
-Claude Code agent skills by samteong.
+Claude Code agent skills by SamTeong.
 
 ## Skills
 
