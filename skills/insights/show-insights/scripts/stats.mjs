@@ -196,7 +196,7 @@ function* dictReader(text) {
 
 function _csv_field(v) {
   let s = v === null || v === undefined ? "" : String(v);
-  if (s.includes(",") || s.includes('"')) {
+  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
     s = '"' + s.replace(/"/g, '""') + '"';
   }
   return s;
@@ -1765,14 +1765,14 @@ function _chart(target,data){
   keys.forEach(function(k){var t=0;Object.keys(data[k]).forEach(function(m){if(vis.has(m))t+=data[k][m];});totals[k]=t;if(t>mx)mx=t;});
   mx=mx||1;var h='',any=false;
   keys.forEach(function(k){var t=totals[k];if(t<=0)return;any=true;var segs='';
-    CHART.models.forEach(function(m){if(!vis.has(m))return;var c=data[k][m]||0;if(c<=0)return;segs+='<div class="seg" style="width:'+(c/mx*100).toFixed(4)+'%;background:'+CHART.colors[m]+'" data-tip="'+m+' · '+_fmt(c)+'"></div>';});
-    h+='<div class="bar-row"><div class="bar-label">'+k+'</div><div class="sbar-track">'+segs+'</div><div class="bar-val">'+_fmt(t)+'</div></div>';
+    CHART.models.forEach(function(m){if(!vis.has(m))return;var c=data[k][m]||0;if(c<=0)return;segs+='<div class="seg" style="width:'+(c/mx*100).toFixed(4)+'%;background:'+CHART.colors[m]+'" data-tip="'+escAttr(m+' · '+_fmt(c))+'"></div>';});
+    h+='<div class="bar-row"><div class="bar-label">'+esc(k)+'</div><div class="sbar-track">'+segs+'</div><div class="bar-val">'+_fmt(t)+'</div></div>';
   });
   target.innerHTML=any?h:'<p class="muted">No data for selected models.</p>';
 }
 function _legend(){
   var filtered=ACTIVE.size>0,target=el('model-filter');
-  target.innerHTML=CHART.models.map(function(m){var off=filtered&&!ACTIVE.has(m)?' off':'';return '<button class="lg-item'+off+'" data-m="'+m+'"><span class="lg-swatch" style="background:'+CHART.colors[m]+'"></span>'+m+'</button>';}).join('')+'<button class="lg-all'+(filtered?'':' active')+'">All</button>';
+  target.innerHTML=CHART.models.map(function(m){var off=filtered&&!ACTIVE.has(m)?' off':'';return '<button class="lg-item'+off+'" data-m="'+escAttr(m)+'"><span class="lg-swatch" style="background:'+CHART.colors[m]+'"></span>'+esc(m)+'</button>';}).join('')+'<button class="lg-all'+(filtered?'':' active')+'">All</button>';
   target.querySelectorAll('button[data-m]').forEach(function(b){b.onclick=function(){_toggle(b.dataset.m);};});
   target.querySelector('.lg-all').onclick=function(){ACTIVE=new Set();_draw();};
 }
