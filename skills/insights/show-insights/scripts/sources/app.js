@@ -105,31 +105,41 @@ function svgTreemap(pm,cmap){
   var items=Object.keys(pm).map(function(m){return [m,pm[m].cost];}).filter(function(x){return x[1]>0;}).sort(function(a,b){return b[1]-a[1];});
   if(!items.length)return '<p class="muted">No data.</p>';
   var W=1000,H=170,tot=items.reduce(function(a,b){return a+b[1];},0)||1,x=0,inner='';
-  items.forEach(function(it){var m=it[0],c=it[1],w=c/tot*W;inner+="<rect x='"+x.toFixed(1)+"' y='0' width='"+w.toFixed(1)+"' height='"+H+"' fill='"+(cmap[m]||'var(--ink-faint)')+"' stroke='var(--surface)' stroke-width='2'><title>"+escAttr(m)+" · $"+c.toFixed(2)+" · "+(c/tot*100).toFixed(1)+"%</title></rect>";if(w>64){var label=esc(m.split('/').pop().slice(0,18));inner+="<text x='"+(x+7).toFixed(1)+"' y='22' fill='#fff' style='font-size:11px'>"+label+"</text><text x='"+(x+7).toFixed(1)+"' y='39' fill='#fff' style='font-size:11px'>$"+Math.round(c)+"</text>";}x+=w;});
+  items.forEach(function(it){var m=it[0],c=it[1],w=c/tot*W;inner+="<rect x='"+x.toFixed(1)+"' y='0' width='"+w.toFixed(1)+"' height='"+H+"' rx='12' ry='12' fill='"+(cmap[m]||'var(--ink-faint)')+"' stroke='var(--surface)' stroke-width='3'><title>"+escAttr(m)+" · $"+c.toFixed(2)+" · "+(c/tot*100).toFixed(1)+"%</title></rect>";if(w>64){var label=esc(m.split('/').pop().slice(0,18));inner+="<text x='"+(x+7).toFixed(1)+"' y='22' fill='#fff' style='font-size:11px'>"+label+"</text><text x='"+(x+7).toFixed(1)+"' y='39' fill='#fff' style='font-size:11px'>$"+Math.round(c)+"</text>";}x+=w;});
   return svgWrap(W,H,inner,'treemap');
 }
-function calHeatmap(days){
-  var dkeys=Object.keys(days).filter(isDate).sort();if(!dkeys.length)return '<p class="muted">No data.</p>';
-  var d0=new Date(+dkeys[0].slice(0,4),+dkeys[0].slice(5,7)-1,+dkeys[0].slice(8,10)),d1=new Date(+dkeys[dkeys.length-1].slice(0,4),+dkeys[dkeys.length-1].slice(5,7)-1,+dkeys[dkeys.length-1].slice(8,10));
-  var start=new Date(d0);start.setDate(start.getDate()-jsWeekday(d0));
-  var b=bucketer(dkeys.map(function(k){return days[k].cost;}));
-  var cells='',cur=new Date(start);
-  while(cur<=d1){var iso=cur.getFullYear()+'-'+pad2(cur.getMonth()+1)+'-'+pad2(cur.getDate());var c=(days[iso]||{}).cost||0;var tip=iso+' · '+(c?'$'+c.toFixed(2):'—');cells+="<div class='c' style='background:"+CFG.HEAT[b(c)]+"' title='"+escAttr(tip)+"'></div>";cur.setDate(cur.getDate()+1);}
-  return "<div class='heat-cal'>"+cells+"</div>";
+// month-grid calendar (design-system: Charts > Daily spend calendar) — renders the
+// month containing `toDate`; cell intensity = daily spend relative to the month's peak.
+var MONTHS_FULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function calMonth(days,toDate){
+  if(!toDate)return '<p class="muted">No data.</p>';
+  var y=+toDate.slice(0,4),m=+toDate.slice(5,7);
+  var startPad=new Date(y,m-1,1).getDay();      // 0=Sun
+  var dim=new Date(y,m,0).getDate();            // days in month
+  var mx=0;for(var d=1;d<=dim;d++){var c0=(days[y+'-'+pad2(m)+'-'+pad2(d)]||{}).cost||0;if(c0>mx)mx=c0;}
+  var dh=['S','M','T','W','T','F','S'],html=dh.map(function(x){return "<div class='dh'>"+x+"</div>";}).join('');
+  for(var i=0;i<startPad;i++)html+="<div class='c empty'></div>";
+  for(var d2=1;d2<=dim;d2++){
+    var iso=y+'-'+pad2(m)+'-'+pad2(d2),c=(days[iso]||{}).cost||0,v=mx>0?c/mx:0;
+    var bg=v<.06?'var(--line-soft)':"color-mix(in srgb, var(--ac) "+Math.round(v*82+12)+"%, transparent)";
+    var tip=iso+' · '+(c?fmtMoney(c):'—');
+    html+="<div class='c"+(v>.5?' on':'')+"' style='background:"+bg+"' title='"+escAttr(tip)+"'>"+d2+"</div>";
+  }
+  return "<div class='cal-lbl'>"+MONTHS_FULL[m-1]+" "+y+"</div><div class='cal'>"+html+"</div>";
 }
 function dayhourHeatmap(S){
   var grid=[];for(var d=0;d<7;d++)grid.push(new Array(24).fill(0));var seen=false;
   S.forEach(function(s){if(s.dow==null||s.hour==null)return;grid[s.dow][s.hour]+=s.cost;seen=true;});
   if(!seen)return '<p class="muted">No data.</p>';
-  var b=bucketer(grid.flat());var dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];var out=["<div class='hl'></div>"];
-  for(var h=0;h<24;h++)out.push("<div class='hl'>"+(h%3===0?h:'')+"</div>");
-  for(var d=0;d<7;d++){out.push("<div class='rl'>"+dow[d]+"</div>");for(var h=0;h<24;h++){var c=grid[d][h];var tip=dow[d]+' '+pad2(h)+':00 · '+(c?'$'+c.toFixed(2):'—');out.push("<div class='c' style='background:"+CFG.HEAT[b(c)]+"' title='"+escAttr(tip)+"'></div>");}}
+  var b=bucketer(grid.flat());var dow=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];var out=["<div></div>"];
+  for(var h=0;h<24;h++)out.push("<div class='hd'>"+(h%6===0?h:'')+"</div>");
+  for(var d=0;d<7;d++){out.push("<div class='rl'>"+dow[d]+"</div>");for(var h=0;h<24;h++){var c=grid[d][h],lv=b(c);var tip=dow[d]+' '+pad2(h)+':00 · '+(c?'$'+c.toFixed(2):'—');out.push("<div class='cell'"+(lv?" style='background:"+CFG.HEAT[lv]+"'":"")+" title='"+escAttr(tip)+"'></div>");}}
   var pk=null,pkD=0,pkH=0;
   for(var d2=0;d2<7;d2++)for(var h2=0;h2<24;h2++){if(grid[d2][h2]>(pk||0)){pk=grid[d2][h2];pkD=d2;pkH=h2;}}
   var dowFull=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   var hh=pkH%12||12,ap=pkH<12?'AM':'PM';
   var ft=pk?"<div class='heatft'><span>Peak spend: <b>"+dowFull[pkD]+", "+hh+" "+ap+"</b> &middot; "+fmtMoney(pk)+" in that hour</span><span class='scalekey'>less <i style='background:"+CFG.HEAT[1]+"'></i><i style='background:"+CFG.HEAT[2]+"'></i><i style='background:"+CFG.HEAT[3]+"'></i><i style='background:"+CFG.HEAT[4]+"'></i> more</span></div>":'';
-  return "<div class='heat-dh'>"+out.join('')+"</div>"+ft;
+  return "<div class='heat'>"+out.join('')+"</div>"+ft;
 }
 
 // ---- bars / tables ----
@@ -153,11 +163,11 @@ function shareBars(months,cmap){
 }
 function periodTable(bucket,label){
   var keys=Object.keys(bucket).sort().reverse();if(!keys.length)return '<p class="muted">No data.</p>';
-  var head="<tr><th>"+esc(label)+"</th><th>Sessions</th><th>Cost $</th><th>Input tok</th><th>Output tok</th><th>Cache read</th><th>Cache create</th></tr>";
+  var head="<tr><th>"+esc(label)+"</th><th class='n'>Sessions</th><th class='n'>Cost $</th><th class='n'>Input tok</th><th class='n'>Output tok</th><th class='n'>Cache read</th><th class='n'>Cache create</th></tr>";
   var body='',tot={sessions:0,cost:0,in:0,out:0,cr:0,cc:0};
-  keys.forEach(function(k){var d=bucket[k];body+="<tr><td>"+esc(k)+"</td><td>"+d.sessions+"</td><td>"+d.cost.toFixed(2)+"</td><td>"+fmtInt(d.in)+"</td><td>"+fmtInt(d.out)+"</td><td>"+fmtInt(d.cr)+"</td><td>"+fmtInt(d.cc)+"</td></tr>";tot.sessions+=d.sessions;tot.cost+=d.cost;tot.in+=d.in;tot.out+=d.out;tot.cr+=d.cr;tot.cc+=d.cc;});
-  body+="<tr class='total'><td>Total</td><td>"+tot.sessions+"</td><td>"+tot.cost.toFixed(2)+"</td><td>"+fmtInt(tot.in)+"</td><td>"+fmtInt(tot.out)+"</td><td>"+fmtInt(tot.cr)+"</td><td>"+fmtInt(tot.cc)+"</td></tr>";
-  return "<table>"+head+body+"</table>";
+  keys.forEach(function(k){var d=bucket[k];body+="<tr><td>"+esc(k)+"</td><td class='n'>"+d.sessions+"</td><td class='n'>"+d.cost.toFixed(2)+"</td><td class='n'>"+fmtInt(d.in)+"</td><td class='n'>"+fmtInt(d.out)+"</td><td class='n'>"+fmtInt(d.cr)+"</td><td class='n'>"+fmtInt(d.cc)+"</td></tr>";tot.sessions+=d.sessions;tot.cost+=d.cost;tot.in+=d.in;tot.out+=d.out;tot.cr+=d.cr;tot.cc+=d.cc;});
+  body+="<tr class='total'><td>Total</td><td class='n'>"+tot.sessions+"</td><td class='n'>"+tot.cost.toFixed(2)+"</td><td class='n'>"+fmtInt(tot.in)+"</td><td class='n'>"+fmtInt(tot.out)+"</td><td class='n'>"+fmtInt(tot.cr)+"</td><td class='n'>"+fmtInt(tot.cc)+"</td></tr>";
+  return "<table class='tbl'>"+head+body+"</table>";
 }
 function donutHtml(data,centerVal,centerSub){
   var total=0;data.forEach(function(x){total+=x.v;});
@@ -174,6 +184,18 @@ function donutHtml(data,centerVal,centerSub){
   return "<div class='donut-wrap'><div class='donut'><svg viewBox='0 0 200 200' width='176' style='max-width:100%'>"+segs+center+"</svg></div><div class='donut-legend'>"+legend+"</div></div>";
 }
 function statline(items){var cells='';items.forEach(function(it){cells+="<div class='s'><div class='v'>"+esc(it[1])+"</div><div class='k'>"+esc(it[0])+"</div></div>";});return "<div class='statline'>"+cells+"</div>";}
+// callout/note row (design-system: Callouts & notes > Note variants) — bold figure + label
+function noteRow(cls,iconPaths,v,k,tip){return "<div class='note"+(cls?' '+cls:'')+"'"+(tip?" title='"+escAttr(tip)+"'":"")+"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'>"+iconPaths+"</svg><div class='txt'><b>"+esc(v)+"</b> "+esc(k)+"</div></div>";}
+// efficiency rate readout — big figure with a clay slash-unit (the ratio operator) + caption
+function effRatio(v,unit,cap,tip){var u=(v==='—')?'':"<span class='er-unit'>"+esc(unit)+"</span>";return "<div class='er'"+(tip?" title='"+escAttr(tip)+"'":"")+"><div class='er-num'>"+esc(v)+u+"</div><div class='er-cap'>"+esc(cap)+"</div></div>";}
+// structured multi-column text card (design-system: Multi-column text > Structured columns)
+function colcards(cols){
+  var html=cols.map(function(c){
+    var rows=c.stats.map(function(s){return "<div class='cc-row'><span>"+esc(s[0])+"</span><b>"+esc(s[1])+"</b></div>";}).join('');
+    return "<div><h4>"+esc(c.title)+"</h4>"+rows+"</div>";
+  }).join('');
+  return "<div class='colcards'>"+html+"</div>";
+}
 function svgRateTrend(sessions){
   var rl=sessions.filter(function(s){return s.r5>0||s.r7>0;}).sort(function(a,b){return a.ts<b.ts?-1:a.ts>b.ts?1:0;});
   if(!rl.length)return '<p class="muted">No rate-limit data yet.</p>';
@@ -196,7 +218,7 @@ function svgRateTrend(sessions){
 }
 function renderRateLimits(sessions){
   var rl=sessions.filter(function(s){return s.r5>0||s.r7>0;});
-  if(!rl.length)return "<div class='note info'><div><b>No rate-limit data yet.</b> Tracking fills as sessions record (forward-only, Claude.ai Pro/Max only).</div></div>";
+  if(!rl.length)return "<div class='note info'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8'><circle cx='12' cy='12' r='9'/><path d='M12 8h.01M11 12h1v4h1'/></svg><div class='txt'><b>No rate-limit data yet.</b> Tracking fills as sessions record (forward-only, Claude.ai Pro/Max only).</div></div>";
   var r5s=rl.map(function(s){return s.r5;}),r7s=rl.map(function(s){return s.r7;});
   var avg=function(a){return a.reduce(function(x,y){return x+y;},0)/a.length;};
   var maxA=function(a){return Math.max.apply(null,a);};
@@ -205,14 +227,10 @@ function renderRateLimits(sessions){
   var peak7=maxA(r7s)||1;
   var rlCost=rl.reduce(function(x,s){return x+s.cost;},0);
   var $per7pt=peak7>0?(rlCost/peak7):0;
-  return svgRateTrend(sessions)+statline([
-    ["5h avg %",avg(r5s).toFixed(1)],
-    ["5h peak %",maxA(r5s).toFixed(1)],
-    ["7d avg %",avg(r7s).toFixed(1)],
-    ["7d peak %",maxA(r7s).toFixed(1)],
-    ["near-cap (>80%)",fmtInt(nearCap)],
-    ["capped (100%)",fmtInt(capped)],
-    ["$/7d%-pt at peak",fmtMoney($per7pt)]
+  return svgRateTrend(sessions)+colcards([
+    {title:'5-hour window',stats:[["avg %",avg(r5s).toFixed(1)],["peak %",maxA(r5s).toFixed(1)]]},
+    {title:'7-day window',stats:[["avg %",avg(r7s).toFixed(1)],["peak %",maxA(r7s).toFixed(1)]]},
+    {title:'Headroom',stats:[["near-cap (>80%)",fmtInt(nearCap)],["capped (100%)",fmtInt(capped)],["$/7d%-pt at peak",fmtMoney($per7pt)]]}
   ]);
 }
 function perModelEfficiency(rates,days,cmap){
@@ -223,8 +241,8 @@ function perModelEfficiency(rates,days,cmap){
   return "<div class='eff-grid'>"+cards+"</div>";
 }
 function topTable(sessions){
-  var top=sessions.slice(0,10);var rows='';top.forEach(function(s){rows+="<tr><td>"+esc(s.ts)+"</td><td class='mono'>"+esc(s.sid.slice(0,8))+"</td><td class='num'>"+s.cost.toFixed(2)+"</td><td><span class='tag'>"+esc(s.model||'-')+"</span></td><td class='num'>"+fmtInt(s.tok)+"</td></tr>";});
-  return "<table><thead><tr><th>Timestamp</th><th>Session</th><th class='num'>Cost $</th><th>Model</th><th class='num'>Tokens</th></tr></thead><tbody>"+rows+"</tbody></table>";
+  var top=sessions.slice(0,10);var rows='';top.forEach(function(s){rows+="<tr><td>"+esc(s.ts)+"</td><td class='hide-sm'>"+esc(s.sid.slice(0,8))+"</td><td><span class='tag'>"+esc(s.model||'-')+"</span></td><td class='n'>$"+s.cost.toFixed(2)+"</td><td class='n'>"+fmtInt(s.tok)+"</td></tr>";});
+  return "<table class='tbl'><thead><tr><th>Timestamp</th><th class='hide-sm'>Session</th><th>Model</th><th class='n'>Cost</th><th class='n'>Tokens</th></tr></thead><tbody>"+rows+"</tbody></table>";
 }
 
 // ---- aggregate ----
@@ -269,11 +287,15 @@ function renderHero(agg,st,firstDate){
   var hourSub=st.activeDurHr?(st.activeDurHr.toFixed(1)+'h active'):fromNote;
   var lineTip="$/line = cost of line-bearing sessions / total lines changed. Shown only when line coverage >= "+(CFG.LINE_COV*100).toFixed(0)+"% of sessions; lines_added/lines_removed are forward-only statusline columns, so older sessions have 0 lines and would inflate the value. Coverage now "+Math.round(st.lineCov*100)+"% ("+st.lineSessions+"/"+agg.n+").";
   var hourTip="$/hour = cost of $0-cost-excluded sessions / active hours (sum of per-session duration, uncapped). duration_ms is the transcript wall-clock span (first->last event), so sessions left open for days (idle/hung, e.g. 577h @ $0) are excluded by the $0-cost filter. Long-but-real sessions count fully.";
-  var spendTip="Sum of total_cost_usd across all sessions in range.";
-  function kpi(cls,big,lbl,sub,tip){return "<div class='"+cls+"' title='"+escAttr(tip)+"'><div class='big'>"+esc(big)+"</div><div class='lbl'>"+esc(lbl)+"</div><div class='sub2'>"+esc(sub)+"</div></div>";}
-  var heroMain="<div class='kpi lead hero-main' title='"+escAttr(spendTip)+"'><div class='hero-num'>"+esc(fmtMoney(t.cost))+"</div><div class='lbl'>total spend</div><div class='sub2'>"+esc(fromNote)+"</div></div>";
-  var heroSpark="<div class='hero-spark' title='"+escAttr('Daily spend, trailing 30 days of range.')+"'>"+sparkline(st.series,'var(--ac)')+"<div class='sub2'>last 30 days</div></div>";
-  var hero="<div class='hero'><div class='hero-left'>"+heroMain+heroSpark+"</div><div class='hero-eff'>"+kpi('kpi sec',hourVal,'$/hour',hourSub,hourTip)+kpi('kpi sec',lineVal,'$/line',lineSub,lineTip)+"</div></div>";
+  // flagcard sparkline (replaces the delta caption in the header card)
+  var fspk=el('flagSpark');
+  if(fspk)fspk.innerHTML=sparkline(st.series,'var(--ac)')+"<div class='sub2'>last 30 days</div>";
+  // efficiency ratios: bold rate readouts — figure + clay slash-unit + caption
+  var eff=el('sec-eff-ratios');
+  if(eff)eff.innerHTML="<div class='eff-ratios'>"+
+    effRatio(hourVal,"/hr",hourSub,hourTip)+
+    effRatio(lineVal,"/line",lineSub,lineTip)+
+  "</div>";
   var apiPct=t.dur?(t.api/t.dur*100):0;
   var dkeys=Object.keys(agg.days).filter(isDate).sort().slice(-30);
   function series(f){return dkeys.map(function(k){return f(agg.days[k]);});}
@@ -288,17 +310,16 @@ function renderHero(agg,st,firstDate){
     ["sessions",fmtInt(agg.n),"recorded","Rows in stats.csv (one per session). Bars: sessions per day, accent = busiest quartile.",sbars(series(function(dd){return dd.sessions;}))],
     ["output tok",fmtAbbr(t.out),fmtAbbr(t.in)+" input","Output vs input tokens across all sessions. Bars: output tokens per day.",sbars(series(function(dd){return dd.out;}))],
     ["cache hit",Math.round(st.cacheHit*100)+"%","read / (read+input)","cache_read / (cache_read + input) — higher means less re-processed context. Bars: daily cache-hit rate.",sbars(series(function(dd){return (dd.cr+dd.in)?dd.cr/(dd.cr+dd.in)*100:0;}))],
-    ["API time",t.dur?(apiPct.toFixed(0)+'%'):'—',t.dur?'of wall-clock':fromNote,"api_duration_ms / duration_ms — share of wall-clock spent on API calls. Bars: daily share.",sbars(series(function(dd){return dd.dur?dd.api/dd.dur*100:0;}))],
-    ["models",String(agg.models.length),"distinct","Distinct last_model values across sessions.",""]];
+    ["API time",t.dur?(apiPct.toFixed(0)+'%'):'—',t.dur?'of wall-clock':fromNote,"api_duration_ms / duration_ms — share of wall-clock spent on API calls. Bars: daily share.",sbars(series(function(dd){return dd.dur?dd.api/dd.dur*100:0;}))]];
   var suppHtml='';supp.forEach(function(s){suppHtml+="<div class='supp' title='"+escAttr(s[3])+"'><span class='v'>"+esc(s[1])+"</span><span class='k'>"+esc(s[0])+"</span><span class='d'>"+esc(s[2])+"</span>"+s[4]+"</div>";});
-  return hero+"<div class='supp-strip'>"+suppHtml+"</div>";
+  return "<div class='supp-strip'>"+suppHtml+"</div>";
 }
 
 // ---- render ----
 function render(range){
   var S=filterSessions(range);
   var agg=aggregate(S);
-  if(!agg.n){var msg='<p class="muted">No sessions in selected range.</p>';['kpi','sec-cumulative','sec-runrate','sec-cal','day-chart','month-chart','day-table','month-table','tok-day-bars','tok-month-bars','tok-mix','cc-ratio','sec-eff-models','sec-throughput','sec-ratelimits','sec-dayhour','sec-scatter','sec-pareto','sec-toptable','sec-treemap','sec-model-sessions','sec-model-cost','sec-share','sec-usage-stats','sec-tools','sec-agents','sec-skills','sec-proj-cost','sec-proj-sess'].forEach(function(id){var e=el(id);if(e)e.innerHTML=msg;});el('tok-legend').innerHTML='';return;}
+  if(!agg.n){var msg='<p class="muted">No sessions in selected range.</p>';['kpi','sec-cumulative','sec-runrate','sec-cal','sec-eff-ratios','day-chart','month-chart','day-table','month-table','tok-day-bars','tok-month-bars','tok-mix','cc-ratio','sec-eff-models','sec-throughput','sec-ratelimits','sec-dayhour','sec-scatter','sec-pareto','sec-toptable','sec-treemap','sec-model-sessions','sec-model-cost','sec-share','sec-usage-stats','sec-tools','sec-agents','sec-skills','sec-proj-cost','sec-proj-sess'].forEach(function(id){var e=el(id);if(e)e.innerHTML=msg;});el('tok-legend').innerHTML='';return;}
   var st=deriveStats(agg,range),t=agg.totals;
   var chartModels=agg.models.slice();
   var hasOthers=Object.keys(agg.days).some(function(k){return 'others' in agg.days[k].cost_by_model;})||Object.keys(agg.months).some(function(k){return 'others' in agg.months[k].cost_by_model;});
@@ -309,8 +330,12 @@ function render(range){
   el('kpi').innerHTML=renderHero(agg,st,FIRST_DATE);
   // spend over time
   el('sec-cumulative').innerHTML=svgCumulative(agg.days,st.run);
-  el('sec-runrate').innerHTML=statline([["avg / day (last "+st.run.ndays+"d)",fmtMoney(st.run.avg)],["projected 30d",fmtMoney(st.run.proj30)],["total to date",fmtMoney(t.cost)]]);
-  el('sec-cal').innerHTML=calHeatmap(agg.days);
+  el('sec-runrate').innerHTML="<div class='notes'>"+
+    noteRow('info',"<circle cx='12' cy='12' r='9'/><path d='M12 7.5V12l3 1.8'/>",fmtMoney(st.run.avg),"avg / day (last "+st.run.ndays+"d)")+
+    noteRow('',"<polyline points='3 17 9 11 13 15 21 7'/><polyline points='21 11 21 7 17 7'/>",fmtMoney(st.run.proj30),"projected 30d")+
+    noteRow('ok',"<path d='M18 5H6l6 7-6 7h12'/>",fmtMoney(t.cost),"total to date")+
+  "</div>";
+  el('sec-cal').innerHTML=calMonth(agg.days,range.to);
   // breakdown
   _draw();
   el('day-table').innerHTML=periodTable(agg.days,'Date');
@@ -319,19 +344,24 @@ function render(range){
   CUR_AGG=agg;renderTok();
   var totTok=t.in+t.out+t.cr+t.cc;
   el('tok-mix').innerHTML=donutHtml(CFG.TOKEN.map(function(tk){return {k:tk.name,v:t[tk.key],c:tk.col};}),fmtAbbr(totTok),'tokens');
-  var ccWaste={};Object.keys(agg.days).forEach(function(k){var d=agg.days[k];ccWaste[k]=d.cr?(d.cc/d.cr):0;});
+  var ccKeys=Object.keys(agg.days).filter(isDate).sort().reverse();
+  if(ccKeys.length>3)ccKeys=ccKeys.slice(0,-3);  // drop the 3 oldest days — keeps the panel compact
+  var ccWaste={};ccKeys.forEach(function(k){var d=agg.days[k];ccWaste[k]=d.cr?(d.cc/d.cr):0;});
   el('cc-ratio').innerHTML=barChart(ccWaste,'var(--ink-soft)',function(v){return v.toFixed(2);});
   // efficiency
   el('sec-eff-models').innerHTML=perModelEfficiency(st.rates,agg.days,cmap);
-  el('sec-throughput').innerHTML=statline([
-    ["turns / session",agg.n?(t.turns/agg.n).toFixed(1):'—'],
-    ["tools / session",agg.n?(t.tools/agg.n).toFixed(1):'—'],
-    ["lines / session",(st.loc&&agg.n)?(st.loc/agg.n).toFixed(0):'—'],
-    ["lines / hour",(st.loc&&st.activeDurHr)?(st.loc/st.activeDurHr).toFixed(0):'—'],
-    ["churn (del/add)",t.la?(t.lr/t.la).toFixed(2):'—'],
-    ["median $/session",fmtMoney(st.dist.median)],
-    ["p90 $/session",fmtMoney(st.dist.p90)],
-    ["max $/session",fmtMoney(st.dist.max)]
+  el('sec-throughput').innerHTML=colcards([
+    {title:'Cadence',stats:[
+      ["turns / session",agg.n?(t.turns/agg.n).toFixed(1):'—'],
+      ["tools / session",agg.n?(t.tools/agg.n).toFixed(1):'—']]},
+    {title:'Delivery',stats:[
+      ["lines / session",(st.loc&&agg.n)?(st.loc/agg.n).toFixed(0):'—'],
+      ["lines / hour",(st.loc&&st.activeDurHr)?(st.loc/st.activeDurHr).toFixed(0):'—'],
+      ["churn (del/add)",t.la?(t.lr/t.la).toFixed(2):'—']]},
+    {title:'Cost spread',stats:[
+      ["median $/session",fmtMoney(st.dist.median)],
+      ["p90 $/session",fmtMoney(st.dist.p90)],
+      ["max $/session",fmtMoney(st.dist.max)]]}
   ]);
   // rate-limit utilization (5h / 7d) — forward-only, Claude.ai Pro/Max only
   el('sec-ratelimits').innerHTML=renderRateLimits(agg.sessions);
@@ -351,7 +381,11 @@ function render(range){
   // usage patterns
   var totTool=0;Object.keys(agg.usage.tools).forEach(function(k){totTool+=agg.usage.tools[k];});
   var errRate=totTool?(agg.usage.tool_errors/totTool*100):0;
-  el('sec-usage-stats').innerHTML=statline([["tool calls",fmtInt(totTool)],["tool errors",fmtInt(agg.usage.tool_errors)],["error rate",errRate.toFixed(1)+"%"],["compactions",fmtInt(agg.usage.compactions)],["subagent types",String(Object.keys(agg.usage.agents).length)],["skills used",String(Object.keys(agg.usage.skills).length)]]);
+  el('sec-usage-stats').innerHTML=colcards([
+    {title:'Tool calls',stats:[["tool calls",fmtInt(totTool)],["tool errors",fmtInt(agg.usage.tool_errors)],["error rate",errRate.toFixed(1)+"%"]]},
+    {title:'Context',stats:[["compactions",fmtInt(agg.usage.compactions)]]},
+    {title:'Ecosystem',stats:[["subagent types",String(Object.keys(agg.usage.agents).length)],["skills used",String(Object.keys(agg.usage.skills).length)]]}
+  ]);
   el('sec-tools').innerHTML=barChart(topn(agg.usage.tools),'var(--ink-soft)',function(v){return fmtInt(v);});
   el('sec-agents').innerHTML=barChart(topn(agg.usage.agents),'#5484B0',function(v){return fmtInt(v);});
   el('sec-skills').innerHTML=barChart(topn(agg.usage.skills,20),'#8A70B8',function(v){return fmtInt(v);});
@@ -383,12 +417,15 @@ function onDateChange(){
   persistRange(range);setActivePreset(null);render(range);
 }
 function initControls(range){
-  var bar=el('rangeBar'),html='<span class="filter-lbl">Range</span>';
+  var bar=el('rangeBar'),html='';
   CFG.PRESETS.forEach(function(p){html+="<button class='range-preset"+(p.id===range.preset?' active':'')+"' data-p='"+p.id+"'>"+p.label+"</button>";});
-  html+="<input type='date' id='from' min='"+FIRST_DATE+"' max='"+LAST_DATE+"' value='"+range.from+"'><span class='sep'>→</span><input type='date' id='to' min='"+FIRST_DATE+"' max='"+LAST_DATE+"' value='"+range.to+"'>";
   bar.innerHTML=html;
+  // date pickers live in their own (currently hidden) container; presets still drive them
+  var dp=el('datePickers');
+  if(dp)dp.innerHTML="<input type='date' id='from' min='"+FIRST_DATE+"' max='"+LAST_DATE+"' value='"+range.from+"'><span class='sep'>→</span><input type='date' id='to' min='"+FIRST_DATE+"' max='"+LAST_DATE+"' value='"+range.to+"'>";
   bar.querySelectorAll('.range-preset').forEach(function(b){b.onclick=function(){applyPreset(b.dataset.p);};});
-  el('from').onchange=onDateChange;el('to').onchange=onDateChange;
+  if(el('from'))el('from').onchange=onDateChange;
+  if(el('to'))el('to').onchange=onDateChange;
 }
 
 // ---- model-filter (breakdown bars only) ----
@@ -456,6 +493,18 @@ var __moonPaths='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>';
 function __lbl(t){var i=document.getElementById('thI');if(i)i.innerHTML=t==='dark'?__sunPaths:__moonPaths;}
 function __tgl(){var d=document.documentElement,n=d.dataset.theme==='dark'?'light':'dark';d.dataset.theme=n;try{localStorage.setItem('agents-report-theme',n);}catch(e){}__lbl(n);if(window.updateGlow)window.updateGlow();}
 
+// ---- roadmap filter (hide already-available features) ----
+function initRoadmapFilter(){
+  var btn=el('road-filter'),grid=el('road-sgs');if(!btn||!grid)return;
+  // default state: available cards hidden, button outlined + "Show available"
+  btn.onclick=function(){
+    var hidden=grid.classList.toggle('hide-avail');
+    btn.textContent=hidden?'Show available':'Hide available';
+    btn.classList.toggle('active',!hidden);  // filled only while everything is shown
+    btn.setAttribute('aria-pressed',hidden?'true':'false');
+  };
+}
+
 // ---- main ----
 var FIRST_DATE,LAST_DATE;
 function main(){
@@ -464,6 +513,7 @@ function main(){
   var range=loadRange();
   initControls(range);
   render(range);
+  initRoadmapFilter();
   __lbl(document.documentElement.dataset.theme);
   try{if(localStorage['show-insights.view']==='month')show('month');}catch(e){}
 }

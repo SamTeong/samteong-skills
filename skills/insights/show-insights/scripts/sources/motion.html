@@ -90,24 +90,6 @@
       var list = filterSessions(range);
       var cost=0, tok=0, models={};
       list.forEach(function(s){ cost+=s.cost||0; tok+=s.tok||0; if(s.model) models[s.model]=1; });
-      var spanDays = Math.max(1, Math.round((new Date(range.to)-new Date(range.from))/86400000)+1);
-      var pFrom = addDays(range.from,-spanDays), pTo = addDays(range.from,-1);
-      var pCost = 0;
-      SESSIONS.forEach(function(s){ var d2=s.ts.slice(0,10); if(d2>=pFrom&&d2<=pTo) pCost+=s.cost||0; });
-      var dEl = el('flagDelta'), nEl = el('flagDeltaNote');
-      if(pCost > 0.005){
-        var pct = (cost-pCost)/pCost*100;
-        dEl.className = 'delta ' + (pct>=0?'up':'down');
-        dEl.innerHTML = (pct>=0?'&#8599; ':'&#8600; ') + Math.abs(pct).toFixed(0) + '%';
-        nEl.textContent = 'vs prior ' + spanDays + 'd';
-      }else{
-        dEl.className = 'delta up';
-        dEl.innerHTML = '&#8599; new';
-        nEl.textContent = 'no prior-period data';
-      }
-      var last = null;
-      list.slice().sort(function(a,b){ return a.ts<b.ts?1:-1; }).some(function(s){ if(s.cost>0){ last=s; return true; } return false; });
-      el('flagLast').textContent = last ? ('\u00b7 last session ' + money(last.cost) + ' \u00b7 ' + last.ts.slice(0,10)) : '';
       el('flagSessions').textContent = fmtInt(list.length);
       el('flagTokens').textContent = fmtAbbr(tok);
       el('flagModels').textContent = Object.keys(models).length;

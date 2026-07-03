@@ -133,12 +133,18 @@ function _render_suggestions(sg) {
   const rows = sg
     .map(
       (s) =>
-        `<div class='sg'><span class='sg-b ${badge[s.status] || "st-idea"}'>` +
+        `<div class='sg rv' data-st='${esc(s.status)}'><span class='sg-b ${badge[s.status] || "st-idea"}'>` +
         `${esc(s.status)}</span><span class='sg-a'>${esc(s.area)}</span>` +
         `<span class='sg-t'>${esc(s.text)}</span></div>`
     )
     .join("");
-  return `<div class='sgs'>${rows}</div>`;
+  const hasAvail = sg.some((s) => s.status === "available");
+  const filter = hasAvail
+    ? "<div class='filter-bar'><span class='filter-lbl'>Roadmap</span>" +
+      "<button id='road-filter' class='lg-all' type='button' aria-pressed='true'>Show available</button></div>"
+    : "";
+  const gridCls = hasAvail ? "sgs hide-avail" : "sgs";
+  return `${filter}<div class='${gridCls}' id='road-sgs'>${rows}</div>`;
 }
 
 // ---- embedded SESSIONS payload ----
@@ -185,8 +191,7 @@ function render_hero() {
 }
 
 const BREAKDOWN_HTML = `<div class='eyebrow' id='sec-breakdown'>Breakdown<span class='n'>cost by day or month, filterable by model</span></div>
-<div class='toggle'><button id='btn-day' class='active' onclick="show('day')">By Day</button><button id='btn-month' onclick="show('month')">By Month</button></div>
-<div class='filter-bar'><span class='filter-lbl'>Filter models</span><div id='model-filter' class='legend'></div></div>
+<div class='ctl-row'><div id='model-filter' class='legend'></div><div class='toggle'><button id='btn-day' class='active' onclick="show('day')">By Day</button><button id='btn-month' onclick="show('month')">By Month</button></div></div>
 <section id='day-view'><div class='card rv'><h3>Cost by day</h3><div id='day-chart'></div></div><div class='scroll' id='day-table'></div></section>
 <section id='month-view' style='display:none'><div class='card rv'><h3>Cost by month</h3><div id='month-chart'></div></div><div class='scroll' id='month-table'></div></section>`;
 
@@ -195,11 +200,10 @@ function render_breakdown() {
 }
 
 const TOKEN_ECONOMICS_HTML = `<div class='eyebrow' id='sec-token-economics'>Token economics<span class='n'>where the tokens go and what the cache saves</span></div>
-<div class='toggle' style='margin-top:4px'><button id='tbtn-day' class='active' onclick="showTok('day')">By Day</button><button id='tbtn-month' onclick="showTok('month')">By Month</button></div>
-<div id='tok-legend' class='legend'></div>
+<div class='ctl-row'><div id='tok-legend' class='legend'></div><div class='toggle'><button id='tbtn-day' class='active' onclick="showTok('day')">By Day</button><button id='tbtn-month' onclick="showTok('month')">By Month</button></div></div>
 <div id='tok-day'><div class='card rv'><h3>Token composition by day</h3><div id='tok-day-bars'></div></div></div>
 <div id='tok-month' style='display:none'><div class='card rv'><h3>Token composition by month</h3><div id='tok-month-bars'></div></div></div>
-<div class='grid2'><div class='card rv'><h3>Token mix</h3><div id='tok-mix'></div></div>
+<div class='grid12'><div class='card rv'><h3>Token mix</h3><div id='tok-mix'></div></div>
 <div class='card rv'><h3>Cache-creation / cache-read ratio by day</h3><div id='cc-ratio'></div></div></div>`;
 
 function render_token_economics() {
@@ -207,8 +211,9 @@ function render_token_economics() {
 }
 
 const EFFICIENCY_HTML = `<div class='eyebrow' id='sec-efficiency'>Efficiency<span class='n'>what a session costs in tokens, time, and lines</span></div>
-<div class='card rv'><h3>Per-model efficiency</h3><div id='sec-eff-models'></div></div>
-<div class='card rv'><h3>Throughput &amp; engagement</h3><div id='sec-throughput'></div></div>`;
+<h3 class='subhead'>Per-model efficiency</h3>
+<div id='sec-eff-models' class='rv'></div>
+<div class='card rv'><div id='sec-throughput'></div></div>`;
 
 function render_efficiency() {
   return EFFICIENCY_HTML;
@@ -238,7 +243,7 @@ function render_sessions() {
 }
 
 const USAGE_PATTERNS_HTML = `<div class='eyebrow' id='sec-usage-patterns'>Usage patterns<span class='n'>tools, subagents, and skills in play</span></div>
-<div class='card rv'><h3>Tool activity</h3><div id='sec-usage-stats'></div></div>
+<div class='card rv'><div id='sec-usage-stats'></div></div>
 <div class='grid2'><div class='card rv'><h3>Tool mix (top 12)</h3><div id='sec-tools'></div></div>
 <div class='card rv'><h3>Subagent types</h3><div id='sec-agents'></div></div></div>
 <div class='card rv'><h3>Skills invoked</h3><div id='sec-skills'></div></div>`;
@@ -265,8 +270,8 @@ function render_models() {
   return MODELS_HTML;
 }
 
-const ROADMAP_HTML = `<div class='eyebrow' id='sec-insights-roadmap-what-could-come-next'>Insights roadmap · what could come next<span class='n'>what this report could measure next</span></div>
-<div class='card rv'>{{ROADMAP_BODY}}</div>`;
+const ROADMAP_HTML = `<div class='eyebrow' id='sec-insights-roadmap-what-could-come-next'>Insights roadmap<span class='n'>what could come next</span></div>
+{{ROADMAP_BODY}}`;
 
 function render_roadmap() {
   return _fill(ROADMAP_HTML, { ROADMAP_BODY: _render_suggestions(_fetch_roadmap()) });
