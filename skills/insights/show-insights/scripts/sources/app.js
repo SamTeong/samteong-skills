@@ -3,7 +3,7 @@ const CFG = {
   TOKEN: [{name:"input",key:"in",col:"var(--azure)"},{name:"output",key:"out",col:"var(--ac)"},{name:"cache_read",key:"cr",col:"var(--sage)"},{name:"cache_creation",key:"cc",col:"var(--amber)"}],
   HEAT: ["transparent","color-mix(in srgb,var(--ac) 22%,transparent)","color-mix(in srgb,var(--ac) 45%,transparent)","color-mix(in srgb,var(--ac) 70%,transparent)","var(--ac)"],
   LINE_COV: 0.05,
-  PRESETS: [{id:"7d",label:"Last 7 days",days:7},{id:"30d",label:"Last 30 days",days:30},{id:"all",label:"All time"}]
+  PRESETS: [{id:"7d",label:"last 7 days",days:7},{id:"30d",label:"last 30 days",days:30},{id:"all",label:"all time"}]
 };
 'use strict';
 // ---- fmt helpers ----
@@ -187,7 +187,17 @@ function statline(items){var cells='';items.forEach(function(it){cells+="<div cl
 // callout/note row (design-system: Callouts & notes > Note variants) — bold figure + label
 function noteRow(cls,iconPaths,v,k,tip){return "<div class='note"+(cls?' '+cls:'')+"'"+(tip?" title='"+escAttr(tip)+"'":"")+"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'>"+iconPaths+"</svg><div class='txt'><b>"+esc(v)+"</b> "+esc(k)+"</div></div>";}
 // efficiency rate readout — big figure with a clay slash-unit (the ratio operator) + caption
-function effRatio(v,unit,cap,tip){var u=(v==='—')?'':"<span class='er-unit'>"+esc(unit)+"</span>";return "<div class='er'"+(tip?" title='"+escAttr(tip)+"'":"")+"><div class='er-num'>"+esc(v)+u+"</div><div class='er-cap'>"+esc(cap)+"</div></div>";}
+// One row of the metric/ratio card (design-system "Metric / ratio card"): eyebrow
+// label, hero figure with a clay /unit, a context line (ctxHtml may carry <b>),
+// and an optional coverage meter. No delta/trend chip by design.
+function ratioBlock(eyebrow,val,unit,ctxHtml,tip,meterPct){
+  var u=(val==='—')?'':"<span class='unit'>"+esc(unit)+"</span>";
+  var meter=(meterPct==null)?'':"<div class='ratio-meter'><i style='width:"+Math.max(0,Math.min(100,meterPct))+"%'></i></div>";
+  return "<div class='ratio'"+(tip?" title='"+escAttr(tip)+"'":"")+">"+
+    "<div class='ratio-eyebrow'>"+esc(eyebrow)+"</div>"+
+    "<div class='ratio-hero'><span class='ratio-val'>"+esc(val)+u+"</span></div>"+
+    "<div class='ratio-ctx'>"+ctxHtml+"</div>"+meter+"</div>";
+}
 // structured multi-column text card (design-system: Multi-column text > Structured columns)
 function colcards(cols){
   var html=cols.map(function(c){
@@ -292,10 +302,14 @@ function renderHero(agg,st,firstDate){
   if(fspk)fspk.innerHTML=sparkline(st.series,'var(--ac)')+"<div class='sub2'>last 30 days</div>";
   // efficiency ratios: bold rate readouts — figure + clay slash-unit + caption
   var eff=el('sec-eff-ratios');
-  if(eff)eff.innerHTML="<div class='eff-ratios'>"+
-    effRatio(hourVal,"/hr",hourSub,hourTip)+
-    effRatio(lineVal,"/line",lineSub,lineTip)+
-  "</div>";
+  if(eff){
+    var hourCtx=st.activeDurHr?("<b>"+st.activeDurHr.toFixed(1)+"h</b> active &middot; <b>"+esc(fmtMoney(t.cost))+"</b> total spend"):esc(fromNote);
+    var covPct=Math.round((st.lineCov||0)*100);
+    var lineCtx=st.loc?("<b>"+esc(fmtInt(st.loc))+"</b> lines &middot; <b>"+covPct+"%</b> coverage"):esc(fromNote);
+    eff.innerHTML=
+      ratioBlock("Cost / active hour",hourVal,"/hr",hourCtx,hourTip,null)+
+      ratioBlock("Cost / line shipped",lineVal,"/line",lineCtx,lineTip,st.loc?covPct:null);
+  }
   var apiPct=t.dur?(t.api/t.dur*100):0;
   var dkeys=Object.keys(agg.days).filter(isDate).sort().slice(-30);
   function series(f){return dkeys.map(function(k){return f(agg.days[k]);});}
@@ -444,7 +458,7 @@ function _chart(target,data){
 }
 function _legend(){
   var filtered=ACTIVE.size>0,target=el('model-filter');
-  target.innerHTML=CHART.models.map(function(m){var off=filtered&&!ACTIVE.has(m)?' off':'';return '<button class="lg-item'+off+'" data-m="'+escAttr(m)+'"><span class="lg-swatch" style="background:'+CHART.colors[m]+'"></span>'+esc(m)+'</button>';}).join('')+'<button class="lg-all'+(filtered?'':' active')+'">All</button>';
+  target.innerHTML=CHART.models.map(function(m){var off=filtered&&!ACTIVE.has(m)?' off':'';return '<button class="lg-item'+off+'" data-m="'+escAttr(m)+'"><span class="lg-swatch" style="background:'+CHART.colors[m]+'"></span>'+esc(m)+'</button>';}).join('')+'<button class="lg-all'+(filtered?'':' active')+'">all</button>';
   target.querySelectorAll('button[data-m]').forEach(function(b){b.onclick=function(){_toggle(b.dataset.m);};});
   target.querySelector('.lg-all').onclick=function(){ACTIVE=new Set();_draw();};
 }
@@ -461,7 +475,7 @@ var TOK_ACTIVE=new Set(),CUR_AGG=null;
 function tokVis(){return TOK_ACTIVE.size?Array.from(TOK_ACTIVE):CFG.TOKEN.map(function(tk){return tk.key;});}
 function renderTokLegend(){
   var filtered=TOK_ACTIVE.size>0,target=el('tok-legend');
-  target.innerHTML=CFG.TOKEN.map(function(tk){var off=filtered&&!TOK_ACTIVE.has(tk.key)?' off':'';return '<button class="lg-item'+off+'" data-k="'+tk.key+'"><span class="lg-swatch" style="background:'+tk.col+'"></span>'+tk.name+'</button>';}).join('')+'<button class="lg-all'+(filtered?'':' active')+'">All</button>';
+  target.innerHTML=CFG.TOKEN.map(function(tk){var off=filtered&&!TOK_ACTIVE.has(tk.key)?' off':'';return '<button class="lg-item'+off+'" data-k="'+tk.key+'"><span class="lg-swatch" style="background:'+tk.col+'"></span>'+tk.name+'</button>';}).join('')+'<button class="lg-all'+(filtered?'':' active')+'">all</button>';
   target.querySelectorAll('button[data-k]').forEach(function(b){b.onclick=function(){_toggleTok(b.dataset.k);};});
   target.querySelector('.lg-all').onclick=function(){TOK_ACTIVE=new Set();renderTok();};
 }
