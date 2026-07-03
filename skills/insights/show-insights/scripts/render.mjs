@@ -1,15 +1,17 @@
-// HTML report renderer for show-insights: render(c) -> full self-contained document.
+// HTML report renderer for show-insights: render(c) -> full self-contained document,
+// in the "paper-and-clay" design language (see design-system/DESIGN-SYSTEM.md).
 // The page layout lives in sources/base.html ({{PLACEHOLDER}} slots) and the larger
 // hero/header block in sources/hero.html; short section markup is inlined as
 // constants below, each returned by its render_<section>() function. Client-side
-// chart code is sources/app.js, page CSS is sources/style.css (shared chrome CSS
-// appended from report_chrome.mjs).
+// chart code is sources/app.js, page CSS is sources/style.css (self-contained,
+// includes the jump-nav/topbar chrome), and the GSAP/three.js reveal + ambient-glow
+// scripts are sources/motion.html (CDN-loaded, degrade gracefully offline).
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { CHROME_CSS, JUMP_JS, jumpNavHtml } from "./report_chrome.mjs";
+import { JUMP_JS, jumpNavHtml } from "./report_chrome.mjs";
 
 const HOME = os.homedir();
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -127,11 +129,11 @@ function _render_suggestions(sg) {
       "improvement roadmap (capture → schema → aggregation → visualization).</p>"
     );
   }
-  const badge = { available: "var(--ac)", partial: "#c98a1c", idea: "#5b6cc4" };
+  const badge = { available: "st-ok", partial: "st-part", idea: "st-idea" };
   const rows = sg
     .map(
       (s) =>
-        `<div class='sg'><span class='sg-b' style='background:${badge[s.status] || "var(--ink-faint)"}'>` +
+        `<div class='sg'><span class='sg-b ${badge[s.status] || "st-idea"}'>` +
         `${esc(s.status)}</span><span class='sg-a'>${esc(s.area)}</span>` +
         `<span class='sg-t'>${esc(s.text)}</span></div>`
     )
@@ -173,7 +175,7 @@ function _build_sessions_json(sessions) {
 // ---- sections ----
 
 function render_style() {
-  return _source("style.css") + "\n" + CHROME_CSS;
+  return _source("style.css");
 }
 
 // hero.html carries the page <header>, opens the main .wrap container (closed
@@ -182,89 +184,89 @@ function render_hero() {
   return _fill(_source("hero.html"), { GENERATED: esc(fmtLocal(new Date())) });
 }
 
-const BREAKDOWN_HTML = `<div class='eyebrow'>Breakdown</div>
+const BREAKDOWN_HTML = `<div class='eyebrow' id='sec-breakdown'>Breakdown<span class='n'>cost by day or month, filterable by model</span></div>
 <div class='toggle'><button id='btn-day' class='active' onclick="show('day')">By Day</button><button id='btn-month' onclick="show('month')">By Month</button></div>
 <div class='filter-bar'><span class='filter-lbl'>Filter models</span><div id='model-filter' class='legend'></div></div>
-<section id='day-view'><div class='card'><h3>Cost by day</h3><div id='day-chart'></div></div><div class='scroll' id='day-table'></div></section>
-<section id='month-view' style='display:none'><div class='card'><h3>Cost by month</h3><div id='month-chart'></div></div><div class='scroll' id='month-table'></div></section>`;
+<section id='day-view'><div class='card rv'><h3>Cost by day</h3><div id='day-chart'></div></div><div class='scroll' id='day-table'></div></section>
+<section id='month-view' style='display:none'><div class='card rv'><h3>Cost by month</h3><div id='month-chart'></div></div><div class='scroll' id='month-table'></div></section>`;
 
 function render_breakdown() {
   return BREAKDOWN_HTML;
 }
 
-const TOKEN_ECONOMICS_HTML = `<div class='eyebrow'>Token economics</div>
+const TOKEN_ECONOMICS_HTML = `<div class='eyebrow' id='sec-token-economics'>Token economics<span class='n'>where the tokens go and what the cache saves</span></div>
 <div class='toggle' style='margin-top:4px'><button id='tbtn-day' class='active' onclick="showTok('day')">By Day</button><button id='tbtn-month' onclick="showTok('month')">By Month</button></div>
 <div id='tok-legend' class='legend'></div>
-<div id='tok-day'><div class='card'><h3>Token composition by day</h3><div id='tok-day-bars'></div></div></div>
-<div id='tok-month' style='display:none'><div class='card'><h3>Token composition by month</h3><div id='tok-month-bars'></div></div></div>
-<div class='grid2'><div class='card'><h3>Token mix</h3><div id='tok-mix'></div></div>
-<div class='card'><h3>Cache-creation / cache-read ratio by day</h3><div id='cc-ratio'></div></div></div>`;
+<div id='tok-day'><div class='card rv'><h3>Token composition by day</h3><div id='tok-day-bars'></div></div></div>
+<div id='tok-month' style='display:none'><div class='card rv'><h3>Token composition by month</h3><div id='tok-month-bars'></div></div></div>
+<div class='grid2'><div class='card rv'><h3>Token mix</h3><div id='tok-mix'></div></div>
+<div class='card rv'><h3>Cache-creation / cache-read ratio by day</h3><div id='cc-ratio'></div></div></div>`;
 
 function render_token_economics() {
   return TOKEN_ECONOMICS_HTML;
 }
 
-const EFFICIENCY_HTML = `<div class='eyebrow'>Efficiency</div>
-<div class='card'><h3>Per-model efficiency</h3><div id='sec-eff-models'></div></div>
-<div class='card'><h3>Throughput &amp; engagement</h3><div id='sec-throughput'></div></div>`;
+const EFFICIENCY_HTML = `<div class='eyebrow' id='sec-efficiency'>Efficiency<span class='n'>what a session costs in tokens, time, and lines</span></div>
+<div class='card rv'><h3>Per-model efficiency</h3><div id='sec-eff-models'></div></div>
+<div class='card rv'><h3>Throughput &amp; engagement</h3><div id='sec-throughput'></div></div>`;
 
 function render_efficiency() {
   return EFFICIENCY_HTML;
 }
 
-const RATE_LIMITS_HTML = `<div class='eyebrow'>Rate-limit utilization · 5h &amp; 7d</div>
-<div class='card'><h3>5h / 7d usage-limit efficiency</h3><div id='sec-ratelimits'></div></div>`;
+const RATE_LIMITS_HTML = `<div class='eyebrow' id='sec-rate-limit-utilization-5h-7d'>Rate-limit utilization · 5h &amp; 7d<span class='n'>how close you run to the usage caps</span></div>
+<div class='card rv'><h3>5h / 7d usage-limit efficiency</h3><div id='sec-ratelimits'></div></div>`;
 
 function render_rate_limits() {
   return RATE_LIMITS_HTML;
 }
 
-const WHEN_YOU_WORK_HTML = `<div class='eyebrow'>When you work</div>
-<div class='card flush2'><h3>Spend by day-of-week × hour</h3><div id='sec-dayhour'></div></div>`;
+const WHEN_YOU_WORK_HTML = `<div class='eyebrow' id='sec-when-you-work'>When you work<span class='n'>spend by weekday and hour</span></div>
+<div class='card flush2 rv'><h3>Spend by day-of-week × hour</h3><div id='sec-dayhour'></div></div>`;
 
 function render_when_you_work() {
   return WHEN_YOU_WORK_HTML;
 }
 
-const SESSIONS_HTML = `<div class='eyebrow'>Sessions</div>
-<div class='grid2'><div class='card'><h3>Cost vs tokens (per session)</h3><div id='sec-scatter'></div></div>
-<div class='card'><h3 id='sec-pareto-title'></h3><div id='sec-pareto'></div></div></div>
+const SESSIONS_HTML = `<div class='eyebrow' id='sec-sessions'>Sessions<span class='n'>the runs that carry the bill</span></div>
+<div class='grid2'><div class='card rv'><h3>Cost vs tokens (per session)</h3><div id='sec-scatter'></div></div>
+<div class='card rv'><h3 id='sec-pareto-title'></h3><div id='sec-pareto'></div></div></div>
 <div class='scroll' id='sec-toptable'></div>`;
 
 function render_sessions() {
   return SESSIONS_HTML;
 }
 
-const USAGE_PATTERNS_HTML = `<div class='eyebrow'>Usage patterns</div>
-<div class='card'><h3>Tool activity</h3><div id='sec-usage-stats'></div></div>
-<div class='grid2'><div class='card'><h3>Tool mix (top 12)</h3><div id='sec-tools'></div></div>
-<div class='card'><h3>Subagent types</h3><div id='sec-agents'></div></div></div>
-<div class='card'><h3>Skills invoked</h3><div id='sec-skills'></div></div>`;
+const USAGE_PATTERNS_HTML = `<div class='eyebrow' id='sec-usage-patterns'>Usage patterns<span class='n'>tools, subagents, and skills in play</span></div>
+<div class='card rv'><h3>Tool activity</h3><div id='sec-usage-stats'></div></div>
+<div class='grid2'><div class='card rv'><h3>Tool mix (top 12)</h3><div id='sec-tools'></div></div>
+<div class='card rv'><h3>Subagent types</h3><div id='sec-agents'></div></div></div>
+<div class='card rv'><h3>Skills invoked</h3><div id='sec-skills'></div></div>`;
 
 function render_usage_patterns() {
   return USAGE_PATTERNS_HTML;
 }
 
-const PROJECTS_HTML = `<div class='eyebrow'>By project</div>
-<div class='grid2'><div class='card'><h3>Cost by project</h3><div id='sec-proj-cost'></div></div>
-<div class='card'><h3>Sessions by project</h3><div id='sec-proj-sess'></div></div></div>`;
+const PROJECTS_HTML = `<div class='eyebrow' id='sec-by-project'>By project<span class='n'>which repos spend the budget</span></div>
+<div class='grid2'><div class='card rv'><h3>Cost by project</h3><div id='sec-proj-cost'></div></div>
+<div class='card rv'><h3>Sessions by project</h3><div id='sec-proj-sess'></div></div></div>`;
 
 function render_projects() {
   return PROJECTS_HTML;
 }
 
-const MODELS_HTML = `<div class='eyebrow'>Models</div>
-<div class='card'><h3>Cost share by model (area ∝ cost)</h3><div id='sec-treemap'></div></div>
-<div class='grid2'><div class='card'><h3>Sessions by model</h3><div id='sec-model-sessions'></div></div>
-<div class='card'><h3>Cost by model</h3><div id='sec-model-cost'></div></div></div>
-<div class='card'><h3>Model adoption — cost share by month</h3><div id='sec-share'></div></div>`;
+const MODELS_HTML = `<div class='eyebrow' id='sec-models'>Models<span class='n'>cost share and adoption over time</span></div>
+<div class='card rv'><h3>Cost share by model (area ∝ cost)</h3><div id='sec-treemap'></div></div>
+<div class='grid2'><div class='card rv'><h3>Sessions by model</h3><div id='sec-model-sessions'></div></div>
+<div class='card rv'><h3>Cost by model</h3><div id='sec-model-cost'></div></div></div>
+<div class='card rv'><h3>Model adoption — cost share by month</h3><div id='sec-share'></div></div>`;
 
 function render_models() {
   return MODELS_HTML;
 }
 
-const ROADMAP_HTML = `<div class='eyebrow'>Insights roadmap · what could come next</div>
-<div class='card'>{{ROADMAP_BODY}}</div>`;
+const ROADMAP_HTML = `<div class='eyebrow' id='sec-insights-roadmap-what-could-come-next'>Insights roadmap · what could come next<span class='n'>what this report could measure next</span></div>
+<div class='card rv'>{{ROADMAP_BODY}}</div>`;
 
 function render_roadmap() {
   return _fill(ROADMAP_HTML, { ROADMAP_BODY: _render_suggestions(_fetch_roadmap()) });
@@ -281,7 +283,26 @@ function render_scripts(sessions) {
   // Escape < so a crafted field (cwd, tool/skill name from a transcript) can't
   // break out of the <script> context. JSON allows \u escapes inside strings.
   const sessions_json = JSON.stringify(secs).replace(/</g, "\\u003c");
-  return "<script>\nvar SESSIONS=" + sessions_json + ";\n" + _source("app.js") + "\n</script>";
+  return (
+    "<script>\nvar SESSIONS=" + sessions_json + ";\n" + _source("app.js") +
+    "\n" + JUMP_JS + "</script>"
+  );
+}
+
+// GSAP reveal-on-scroll + three.js ambient glow + flagcard updater. CDN-loaded;
+// every effect no-ops when offline or under prefers-reduced-motion.
+function render_motion() {
+  return _source("motion.html");
+}
+
+// Build the fixed "Go to section" nav from the eyebrows already present in the
+// composed document (each carries its anchor id statically).
+function _jump_nav(doc) {
+  const items = [["top", "↑ Top"]];
+  const re = /<div class='eyebrow' id='([^']+)'>([\s\S]*?)<span class='n'>/g;
+  let m;
+  while ((m = re.exec(doc))) items.push([m[1], htmlUnescape(m[2])]);
+  return jumpNavHtml(items);
 }
 
 // ---- render ----
@@ -302,37 +323,8 @@ export function render(c) {
     ROADMAP: render_roadmap(),
     FOOTER: render_footer(),
     SCRIPTS: render_scripts(c.sessions),
+    MOTION: render_motion(),
   });
-  return _inject_jump_nav(doc);
-}
-
-function _inject_jump_nav(html_doc) {
-  const items = [["top", "↑ Top"]];
-  const seen = new Set();
-
-  html_doc = html_doc.replace(/<div class='eyebrow'>([\s\S]*?)<\/div>/g, (m, raw) => {
-    const text = htmlUnescape(raw);
-    let slug = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "sec";
-    let sid = `sec-${slug}`;
-    let k = 2;
-    while (seen.has(sid)) {
-      sid = `sec-${slug}-${k}`;
-      k += 1;
-    }
-    seen.add(sid);
-    items.push([sid, text]);
-    return `<div class='eyebrow' id='${sid}'>${raw}</div>`;
-  });
-  html_doc = html_doc.replace(
-    "<h1>Claude Code Insights</h1>",
-    "<h1 id='top'>Claude Code Insights</h1>"
-  );
-  if (items.length <= 1) return html_doc;
-  const nav = jumpNavHtml(items);
-  html_doc = html_doc.replace("<script>\nvar SESSIONS=", nav + "<script>\nvar SESSIONS=");
-  html_doc = html_doc.replace(
-    "\n</script></body></html>",
-    "\n" + JUMP_JS + "</script></body></html>"
-  );
-  return html_doc;
+  // Second pass: the nav is derived from the section markup composed above.
+  return _fill(doc, { JUMP_NAV: _jump_nav(doc) });
 }
