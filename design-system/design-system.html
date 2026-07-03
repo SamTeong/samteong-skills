@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Insights · Design System</title>
+<meta name="description" content="Living style guide for the Claude Code Insights report — tokens, components, and patterns in the paper-and-clay visual language.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   FOUNDATIONS — tokens carried over verbatim from original.html
+   ============================================================ */
+:root{
+  --paper:#F4F0E7; --paper-2:#EBE4D6; --paper-3:#E2DAC9;
+  --ink:#26211B; --ink-soft:#6E6558; --ink-faint:#9C9384;
+  --line:#DED6C6; --line-soft:#E8E1D3;
+  --clay:#D97757; --clay-deep:#C15F3C; --amber:#E0A03C; --sage:#4E9E7B; --azure:#5484B0; --red:#C6553F;
+  --card:rgba(255,253,248,0.66); --card-2:rgba(255,253,248,0.82); --card-brd:rgba(255,255,255,0.72);
+  --card-shadow:0 1px 0 rgba(255,255,255,0.6) inset, 0 18px 40px -24px rgba(60,44,30,0.35), 0 2px 6px -2px rgba(60,44,30,0.12);
+  --pos:var(--sage); --neg:var(--red);
+  --glow-a:rgba(217,119,87,0.55); --glow-b:rgba(224,160,60,0.5); --glow-c:rgba(84,132,176,0.28);
+  --grain:0.03;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --disp:'Bricolage Grotesque',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  /* spacing scale */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:22px; --s6:32px; --s7:48px;
+  /* radius scale */
+  --r-sm:7px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
+}
+[data-theme="dark"]{
+  --paper:#141210; --paper-2:#1B1712; --paper-3:#221C15;
+  --ink:#EFE8D9; --ink-soft:#A79C8A; --ink-faint:#6F6656;
+  --line:#2E2820; --line-soft:#251F19;
+  --clay:#E58B60; --clay-deep:#E0714C; --amber:#EEB65E; --sage:#5FC49A; --azure:#78ABDC; --red:#E27A63;
+  --card:rgba(28,23,18,0.55); --card-2:rgba(33,27,21,0.78); --card-brd:rgba(255,255,255,0.07);
+  --card-shadow:0 1px 0 rgba(255,255,255,0.04) inset, 0 24px 50px -28px rgba(0,0,0,0.7), 0 2px 6px -2px rgba(0,0,0,0.4);
+  --glow-a:rgba(224,113,76,0.5); --glow-b:rgba(238,182,94,0.32); --glow-c:rgba(120,171,220,0.22);
+  --grain:0.05;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--body); background:var(--paper); color:var(--ink);
+  -webkit-font-smoothing:antialiased; line-height:1.5; overflow-x:hidden;
+  transition:background .5s ease,color .5s ease;
+}
+/* ambient glow (CSS-only, no WebGL dependency for the guide) */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(60vw 50vh at 82% 4%, var(--glow-b), transparent 60%),
+    radial-gradient(55vw 45vh at 12% 30%, var(--glow-a), transparent 62%),
+    radial-gradient(40vw 40vh at 60% 92%, var(--glow-c), transparent 65%);
+  opacity:.7;
+}
+body::after{ /* film grain */
+  content:""; position:fixed; inset:0; z-index:9; pointer-events:none; opacity:var(--grain);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.wrap{max-width:1220px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
+.mono{font-family:var(--mono)}
+::selection{background:var(--clay);color:#fff}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--clay);outline-offset:3px;border-radius:6px}
+
+/* ---------- top bar (from original.html) ---------- */
+.topbar{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:linear-gradient(to bottom,var(--paper) 30%,transparent);border-bottom:1px solid transparent;transition:border-color .3s}
+.topbar.stuck{border-color:var(--line)}
+.topbar-in{display:flex;align-items:center;gap:16px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-weight:600;font-size:14px;letter-spacing:-.01em}
+.brand .mk{width:22px;height:22px;flex:none}
+.brand b{color:var(--ink)} .brand span{color:var(--ink-faint)}
+.spacer{flex:1}
+.seg{display:inline-flex;background:var(--card-2);border:1px solid var(--card-brd);border-radius:999px;padding:3px;box-shadow:var(--card-shadow)}
+.seg button{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.04em;color:var(--ink-soft);
+  background:none;border:none;padding:7px 13px;border-radius:999px;cursor:pointer;transition:color .2s}
+.seg button.on{color:#fff;background:var(--clay);box-shadow:0 4px 12px -4px var(--clay)}
+.pill{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);
+  border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:var(--card)}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--sage);box-shadow:0 0 0 3px color-mix(in srgb,var(--sage) 25%,transparent);animation:pulse 2.4s infinite}
+@keyframes pulse{50%{opacity:.4}}
+.iconbtn{width:38px;height:38px;flex:none;display:grid;place-items:center;border-radius:50%;cursor:pointer;
+  background:var(--card-2);border:1px solid var(--card-brd);color:var(--ink-soft);box-shadow:var(--card-shadow);transition:transform .2s,color .2s}
+.iconbtn:hover{transform:translateY(-2px);color:var(--clay)}
+.iconbtn svg{width:17px;height:17px}
+
+/* ---------- style-guide chrome ---------- */
+.ds-hero{padding:44px 0 10px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--clay);font-weight:600}
+.ds-hero h1{font-family:var(--disp);font-weight:600;font-size:clamp(28px,3.6vw,42px);line-height:1.06;letter-spacing:-.02em;margin:14px 0 0;max-width:22ch;text-wrap:balance}
+.ds-hero p{font-size:clamp(13px,1.5vw,15px);color:var(--ink-soft);max-width:60ch;margin:16px 0 0;line-height:1.62}
+.jump{position:sticky;top:64px;z-index:15;display:flex;gap:8px;flex-wrap:wrap;padding:14px 0;margin-bottom:8px;
+  background:linear-gradient(to bottom,var(--paper) 70%,transparent);backdrop-filter:blur(8px)}
+.jump a{font-family:var(--mono);font-size:11px;color:var(--ink-soft);border:1px solid var(--line);border-radius:999px;
+  padding:5px 12px;text-decoration:none;background:var(--card);transition:color .2s,border-color .2s}
+.jump a:hover{color:var(--clay);border-color:var(--clay)}
+
+.sec{padding:30px 0;scroll-margin-top:120px}
+.sec-h{display:flex;align-items:baseline;gap:14px;margin-bottom:18px}
+.sec-h h2{font-family:var(--disp);font-weight:600;font-size:clamp(20px,2.6vw,27px);letter-spacing:-.02em}
+.sec-h .n{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.1em}
+.lede{font-size:13.5px;color:var(--ink-soft);max-width:70ch;line-height:1.6;margin:-6px 0 20px}
+.badge-new{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--clay-deep);background:color-mix(in srgb,var(--clay) 16%,transparent);padding:3px 7px;border-radius:6px;vertical-align:middle}
+[data-theme=dark] .badge-new{color:var(--clay)}
+.demo{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px}
+
+/* ---------- card (from original.html) ---------- */
+.card{background:var(--card);border:1px solid var(--card-brd);border-radius:22px;padding:22px;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:var(--card-shadow);position:relative;overflow:hidden}
+.card h3{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ink-soft);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.grid{display:grid;gap:16px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:1fr 1fr}
+.span2{grid-column:span 2}
+
+/* ---------- foundations: swatches & type ---------- */
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sw{border:1px solid var(--card-brd);border-radius:14px;overflow:hidden;background:var(--card-2);box-shadow:var(--card-shadow)}
+.sw .chip{height:64px}
+.sw .meta{padding:9px 11px;font-family:var(--mono);font-size:10.5px}
+.sw .meta b{display:block;color:var(--ink);font-size:11px;font-weight:600;letter-spacing:.02em}
+.sw .meta span{color:var(--ink-faint)}
+.typerow{display:flex;align-items:baseline;gap:16px;padding:14px 0;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.typerow:last-child{border-bottom:none}
+.typerow .tag{font-family:var(--mono);font-size:10px;color:var(--ink-faint);width:120px;flex:none;letter-spacing:.06em;text-transform:uppercase}
+.scale-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.scale-box{display:flex;flex-direction:column;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+.scale-box i{display:block;background:color-mix(in srgb,var(--clay) 22%,transparent);border:1px solid color-mix(in srgb,var(--clay) 35%,transparent);border-radius:6px}
+.elev{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.elev .e{height:96px;border-radius:16px;background:var(--card-2);border:1px solid var(--card-brd);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
+.e.e0{box-shadow:none}
+.e.e1{box-shadow:0 2px 6px -2px rgba(60,44,30,0.14)}
+.e.e2{box-shadow:var(--card-shadow)}
+
+/* ---------- buttons (NEW) ---------- */
+.btn{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.03em;border-radius:12px;padding:10px 18px;
+  cursor:pointer;border:1px solid transparent;transition:transform .15s,box-shadow .2s,color .2s,background .2s;display:inline-flex;align-items:center;gap:8px}
+.btn svg{width:15px;height:15px}
+.btn-primary{background:var(--clay);color:#fff;box-shadow:0 6px 16px -6px var(--clay)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 22px -8px var(--clay)}
+.btn-secondary{background:var(--card-2);border-color:var(--card-brd);color:var(--ink);box-shadow:var(--card-shadow)}
+.btn-secondary:hover{transform:translateY(-2px);color:var(--clay)}
+.btn-ghost{background:transparent;color:var(--ink-soft)}
+.btn-ghost:hover{color:var(--clay);background:color-mix(in srgb,var(--clay) 10%,transparent)}
+.btn:disabled{opacity:.42;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-sm{padding:7px 13px;font-size:11px;border-radius:10px}
+.rowset{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+
+/* ---------- badges / chips (NEW, harmonised with .tag/.st) ---------- */
+.chipset{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.chip-b{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:4px 9px;border-radius:7px}
+.chip-clay{color:var(--clay-deep);background:color-mix(in srgb,var(--clay) 14%,transparent)}
+.chip-sage{color:var(--sage);background:color-mix(in srgb,var(--sage) 15%,transparent)}
+.chip-amber{color:var(--clay-deep);background:color-mix(in srgb,var(--amber) 18%,transparent)}
+.chip-azure{color:var(--azure);background:color-mix(in srgb,var(--azure) 16%,transparent)}
+.chip-outline{color:var(--ink-soft);background:transparent;border:1px solid var(--line)}
+[data-theme=dark] .chip-clay,[data-theme=dark] .chip-amber{color:var(--clay)}
+.delta{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:7px}
+.delta.up{color:var(--pos);background:color-mix(in srgb,var(--sage) 15%,transparent)}
+.delta.down{color:var(--neg);background:color-mix(in srgb,var(--red) 15%,transparent)}
+
+/* ---------- stat card + sparkline (from original.html) ---------- */
+.stat .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.stat .val{font-family:var(--mono);font-weight:700;font-size:clamp(26px,3.4vw,34px);letter-spacing:-.03em;margin:14px 0 2px}
+.stat .sub{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+.stat .spark{margin-top:14px;height:38px;display:flex;align-items:flex-end;gap:2px}
+.stat .spark i{flex:1;border-radius:2px 2px 0 0;background:var(--line);transition:height .6s cubic-bezier(.2,.8,.2,1)}
+
+/* ---------- legend + bars (from original.html) ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:14px}
+.legend b{display:inline-flex;align-items:center;gap:6px;font-weight:500}
+.legend b i{width:9px;height:9px;border-radius:3px}
+.legend b.mut{opacity:.4}
+.legend b[data-filter]{cursor:pointer}
+.blist{display:flex;flex-direction:column;gap:11px;margin-top:6px}
+.brow{display:grid;grid-template-columns:130px 1fr auto;align-items:center;gap:12px;font-family:var(--mono);font-size:12px}
+.brow .name{color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow .track{height:9px;border-radius:6px;background:var(--line-soft);overflow:hidden}
+.brow .track>i{display:block;height:100%;border-radius:6px;width:0;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.brow .amt{font-weight:600;text-align:right}
+
+/* ---------- subrow (from original.html) ---------- */
+.subrow{display:flex;justify-content:space-between;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft)}
+.subrow div{text-align:center;flex:1}
+.subrow .v{font-family:var(--mono);font-weight:700;font-size:16px}
+.subrow .l{font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint);margin-top:3px}
+
+/* gauge (from original.html) */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 0 2px}
+.gauge-wrap .big{font-family:var(--mono);font-weight:700;font-size:44px;letter-spacing:-.03em;margin-top:-46px}
+.gauge-wrap .cap{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-top:2px;text-align:center}
+
+/* ---------- PIE / DONUT (NEW) ---------- */
+.donut-wrap{display:flex;align-items:center;gap:26px;flex-wrap:wrap;justify-content:center;padding:8px 0}
+.donut-val{font-family:var(--mono);font-weight:700;font-size:26px;fill:var(--ink);letter-spacing:-.02em}
+.donut-sub{font-family:var(--mono);font-size:9px;fill:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase}
+.donut svg circle,.donut svg path{transition:opacity .2s}
+.donut-legend{display:flex;flex-direction:column;gap:9px;min-width:150px}
+.donut-legend .li{display:grid;grid-template-columns:11px 1fr auto;gap:9px;align-items:center;font-family:var(--mono);font-size:12px;color:var(--ink-soft)}
+.donut-legend .li i{width:11px;height:11px;border-radius:4px}
+.donut-legend .li b{color:var(--ink);font-weight:600}
+.donut-legend .li .pc{color:var(--ink-faint)}
+
+/* ---------- COLUMN CHART (NEW) ---------- */
+.cols{display:flex;align-items:flex-end;gap:12px;height:190px;margin-top:8px}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%}
+.col .track{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center}
+.col .bar{width:100%;max-width:44px;height:0;border-radius:8px 8px 3px 3px;transition:height 1s cubic-bezier(.2,.8,.2,1);position:relative}
+.col .bar::after{content:attr(data-v);position:absolute;top:-20px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--ink-soft);white-space:nowrap}
+.col .lbl{font-family:var(--mono);font-size:10px;color:var(--ink-faint)}
+
+/* ---------- SCATTER (NEW) ---------- */
+.scatter text{font-family:var(--mono);font-size:9px;fill:var(--ink-faint)}
+.scatter .axl{stroke:var(--line-soft);stroke-width:1}
+.scatter circle{transition:transform .15s}
+
+/* ---------- CALENDAR HEATMAP (NEW) ---------- */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px}
+.cal .dh{font-family:var(--mono);font-size:9px;color:var(--ink-faint);text-align:center;padding-bottom:2px}
+.cal .c{aspect-ratio:1;border-radius:6px;background:var(--line-soft);display:grid;place-items:center;
+  font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);transition:transform .15s}
+.cal .c.on{color:color-mix(in srgb,var(--ink) 70%,transparent)}
+.cal .c:hover{transform:scale(1.08);z-index:2}
+.cal .c.empty{background:transparent}
+
+/* heatmap (from original.html) */
+.heat{display:grid;grid-template-columns:32px repeat(24,1fr);gap:3px;margin-top:6px}
+.heat .hd{font-family:var(--mono);font-size:9px;color:var(--ink-faint);text-align:center;align-self:center}
+.heat .rl{font-family:var(--mono);font-size:10px;color:var(--ink-soft)}
+.heat .cell{aspect-ratio:1;border-radius:3px;background:var(--line-soft);transition:transform .15s}
+.heat .cell:hover{transform:scale(1.35);z-index:2}
+.heatft{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);flex-wrap:wrap;gap:8px}
+.scalekey{display:flex;align-items:center;gap:6px}
+.scalekey i{width:14px;height:9px;border-radius:2px}
+
+/* table (from original.html) */
+.tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin-top:4px}
+.tbl th{text-align:left;font-weight:600;color:var(--ink-faint);font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:0 10px 12px;border-bottom:1px solid var(--line)}
+.tbl td{padding:12px 10px;border-bottom:1px solid var(--line-soft);color:var(--ink-soft)}
+.tbl td.n{color:var(--ink);font-weight:600;text-align:right}
+.tbl tr:last-child td{border-bottom:none}
+.tbl .tag{font-size:10px;padding:2px 8px;border-radius:6px;background:color-mix(in srgb,var(--clay) 14%,transparent);color:var(--clay-deep)}
+[data-theme=dark] .tbl .tag{color:var(--clay)}
+.tbl th:nth-child(n+3),.tbl td:nth-child(n+3){text-align:right}
+
+/* roadmap (from original.html) */
+.road{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px}
+.ritem{border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--card)}
+.ritem .st{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:999px;font-weight:600}
+.ritem .st.ship{color:var(--sage);background:color-mix(in srgb,var(--sage) 14%,transparent)}
+.ritem .st.next{color:var(--amber);background:color-mix(in srgb,var(--amber) 16%,transparent)}
+.ritem .st.idea{color:var(--azure);background:color-mix(in srgb,var(--azure) 16%,transparent)}
+.ritem h4{font-family:var(--disp);font-weight:600;font-size:16px;margin:12px 0 6px;letter-spacing:-.01em}
+.ritem p{font-size:12.5px;color:var(--ink-soft);line-height:1.55}
+
+/* ---------- MULTI-COLUMN TEXT CARD (NEW) ---------- */
+/* variant A — editorial flowing columns */
+.coltext{column-count:3;column-gap:34px;column-rule:1px solid var(--line-soft);margin-top:6px}
+.coltext > p{margin:0 0 13px;font-size:13.5px;line-height:1.72;color:var(--ink-soft);break-inside:avoid-column}
+.coltext > p.kick{color:var(--ink)}
+.coltext > p:first-of-type::first-letter{font-family:var(--disp);font-weight:700;font-size:52px;line-height:.8;
+  float:left;margin:4px 10px 0 0;color:var(--clay)}
+/* variant B — structured, headed columns */
+.colcards{display:grid;grid-template-columns:repeat(3,1fr);margin-top:4px}
+.colcards > div{padding:2px 24px;border-right:1px solid var(--line-soft)}
+.colcards > div:first-child{padding-left:0}
+.colcards > div:last-child{border-right:none;padding-right:0}
+.colcards .idx{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--clay);font-weight:600}
+.colcards h4{font-family:var(--disp);font-weight:600;font-size:17px;letter-spacing:-.01em;margin:10px 0 8px}
+.colcards p{font-size:13px;line-height:1.68;color:var(--ink-soft)}
+
+/* ---------- CALLOUT / NOTE (NEW) ---------- */
+.note{display:flex;gap:13px;border:1px solid var(--line);border-left:3px solid var(--clay);border-radius:14px;
+  padding:15px 17px;background:var(--card);align-items:flex-start}
+.note + .note{margin-top:12px}
+.note svg{width:18px;height:18px;flex:none;margin-top:1px;color:var(--clay)}
+.note .txt{font-size:13px;line-height:1.6;color:var(--ink-soft)}
+.note .txt b{color:var(--ink);font-weight:600}
+.note.info{border-left-color:var(--azure)} .note.info svg{color:var(--azure)}
+.note.warn{border-left-color:var(--amber)} .note.warn svg{color:var(--amber)}
+.note.ok{border-left-color:var(--sage)} .note.ok svg{color:var(--sage)}
+
+footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:40px}
+.foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+
+/* reveal */
+.rv{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1)}
+.rv.in{opacity:1;transform:none}
+
+@media(max-width:900px){
+  .g4{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr}
+  .road,.colcards{grid-template-columns:1fr}
+  .coltext{column-count:2}
+  .brow{grid-template-columns:100px 1fr auto}
+  .colcards > div{border-right:none;border-bottom:1px solid var(--line-soft);padding:16px 0}
+  .colcards > div:first-child{padding-top:0}
+}
+@media(max-width:640px){
+  .g4,.g2{grid-template-columns:1fr}
+  .span2{grid-column:auto}
+  .coltext{column-count:1}
+  .heat{grid-template-columns:28px repeat(24,1fr);gap:2px}
+  .heat .hd{font-size:0}
+  .hide-sm{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;transition-duration:.001s!important}
+  .rv{opacity:1;transform:none}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand">
+      <svg class="mk" viewBox="0 0 24 24" fill="none"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z" stroke="var(--clay)" stroke-width="1.6"/><path d="M12 7 7.5 9.5v5L12 17l4.5-2.5v-5L12 7Z" fill="var(--clay)" opacity=".9"/></svg>
+      <span>claude-code</span>&nbsp;<b>design&nbsp;system</b>
+    </div>
+    <div class="spacer"></div>
+    <span class="pill hide-sm"><span class="dot"></span>v1.0 · living guide</span>
+    <button class="iconbtn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">
+      <svg id="thI" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="ds-hero">
+    <div class="eyebrow">Claude Code Insights · Design System</div>
+    <h1>One paper-and-clay language for every chart, card, and control.</h1>
+    <p>Tokens, components, and patterns extracted from the Insights report. Everything here shares the same glass cards, monospace numerics, and dual light/dark theming — so new sections drop in without a redesign. Toggle the theme (top right) to check both modes.</p>
+  </section>
+
+  <nav class="jump">
+    <a href="#foundations">Foundations</a>
+    <a href="#controls">Controls</a>
+    <a href="#datacards">Data cards</a>
+    <a href="#charts">Charts</a>
+    <a href="#pie">Pie / donut ★</a>
+    <a href="#coltext">Multi-column text ★</a>
+    <a href="#content">Content</a>
+    <a href="#table">Table & roadmap</a>
+  </nav>
+
+  <!-- ============ FOUNDATIONS ============ -->
+  <section class="sec" id="foundations">
+    <div class="sec-h"><h2>Foundations</h2><span class="n mono">tokens · type · scale · elevation</span></div>
+
+    <div class="grid g2" style="align-items:start">
+      <div class="card rv">
+        <h3>Color tokens</h3>
+        <p class="demo">brand &amp; semantic — all theme-aware CSS variables</p>
+        <div class="swatches" id="swatches"></div>
+      </div>
+      <div class="card rv">
+        <h3>Typography</h3>
+        <p class="demo">3 families · display / body / mono</p>
+        <div class="typerow"><span class="tag">Display</span><span style="font-family:var(--disp);font-weight:600;font-size:26px;letter-spacing:-.02em">Bricolage Grotesque</span></div>
+        <div class="typerow"><span class="tag">Body</span><span style="font-family:var(--body);font-size:16px">Inter — clear at small sizes</span></div>
+        <div class="typerow"><span class="tag">Mono / data</span><span class="mono" style="font-size:16px;font-weight:700">JetBrains 42.4M · $6.62</span></div>
+        <h3 style="margin-top:22px">Spacing &amp; radius scale</h3>
+        <p class="demo">4 · 8 · 12 · 16 · 22 · 32 · 48</p>
+        <div class="scale-row" id="scaleRow"></div>
+        <h3 style="margin-top:22px">Elevation</h3>
+        <div class="elev" style="margin-top:10px">
+          <div class="e e0">flat</div><div class="e e1">raised</div><div class="e e2">card</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONTROLS ============ -->
+  <section class="sec" id="controls">
+    <div class="sec-h"><h2>Controls</h2><span class="n mono">buttons · toggles · pills · badges</span></div>
+    <p class="lede">The report was originally read-only; buttons, chips, and tabs are added here so interactive sections (filters, exports, drill-downs) stay on-language. <span class="badge-new">new</span> marks patterns not in the original report.</p>
+    <div class="grid g2" style="align-items:start">
+      <div class="card rv">
+        <h3>Buttons <span class="badge-new">new</span></h3>
+        <p class="demo">primary · secondary · ghost · sizes · disabled</p>
+        <div class="rowset" style="margin-bottom:14px">
+          <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Generate report</button>
+          <button class="btn btn-secondary">Export CSV</button>
+          <button class="btn btn-ghost">Dismiss</button>
+        </div>
+        <div class="rowset">
+          <button class="btn btn-primary btn-sm">Small</button>
+          <button class="btn btn-secondary btn-sm">Small</button>
+          <button class="btn btn-primary" disabled>Disabled</button>
+        </div>
+        <h3 style="margin-top:22px">Segmented control &amp; tabs</h3>
+        <p class="demo">reused from the top-bar range switch</p>
+        <div class="rowset">
+          <div class="seg"><button class="on">7D</button><button>30D</button><button>ALL</button></div>
+          <div class="seg" id="tabSeg"><button class="on" data-t="day">By day</button><button data-t="month">By month</button></div>
+        </div>
+      </div>
+      <div class="card rv">
+        <h3>Pills, badges &amp; deltas</h3>
+        <p class="demo">status pill · semantic chips · trend deltas</p>
+        <div class="chipset" style="margin-bottom:14px">
+          <span class="pill"><span class="dot"></span>local only</span>
+          <span class="delta up">&#8599; 18%</span>
+          <span class="delta down">&#8600; 9%</span>
+        </div>
+        <div class="chipset">
+          <span class="chip-b chip-clay">opus-4-8</span>
+          <span class="chip-b chip-sage">shipped</span>
+          <span class="chip-b chip-amber">next up</span>
+          <span class="chip-b chip-azure">idea</span>
+          <span class="chip-b chip-outline">draft</span>
+        </div>
+        <h3 style="margin-top:22px">Icon button</h3>
+        <p class="demo">circular · glass · used for theme, actions</p>
+        <div class="chipset">
+          <button class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg></button>
+          <button class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></button>
+          <button class="iconbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DATA CARDS ============ -->
+  <section class="sec" id="datacards">
+    <div class="sec-h"><h2>Data cards</h2><span class="n mono">the KPI + breakdown building blocks</span></div>
+    <div class="grid g4" id="kpi"></div>
+    <div class="grid g2" style="margin-top:16px;align-items:start">
+      <div class="card rv"><h3>Cost by model</h3><p class="demo">horizontal bar-list</p><div class="blist" id="modelBars"></div></div>
+      <div class="card rv"><h3>Cost by project</h3><p class="demo">bar-list · truncating labels</p><div class="blist" id="projBars"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ CHARTS ============ -->
+  <section class="sec" id="charts">
+    <div class="sec-h"><h2>Charts</h2><span class="n mono">svg · token-coloured · animate on reveal</span></div>
+    <div class="grid g3" style="align-items:start">
+      <div class="card span2 rv">
+        <h3>Cumulative spend<span class="mono" style="color:var(--ink-faint)">area + forecast</span></h3>
+        <div id="areaChart" style="margin-top:14px"></div>
+      </div>
+      <div class="card rv">
+        <h3>Cache efficiency</h3>
+        <div class="gauge-wrap"><div id="gauge"></div><div class="big mono" id="gaugeVal">99%</div><div class="cap">of tokens served from cache</div></div>
+      </div>
+    </div>
+
+    <div class="grid g3" style="margin-top:16px;align-items:start">
+      <!-- COLUMN CHART (NEW) -->
+      <div class="card rv">
+        <h3>Cost by month <span class="badge-new">new</span></h3>
+        <p class="demo">vertical column chart · <span id="colSrc">by day</span></p>
+        <div class="cols" id="cols"></div>
+      </div>
+      <!-- SCATTER (NEW) -->
+      <div class="card rv">
+        <h3>Cost vs tokens <span class="badge-new">new</span></h3>
+        <p class="demo">scatter · one dot per session</p>
+        <div id="scatter"></div>
+      </div>
+      <!-- CALENDAR (NEW) -->
+      <div class="card rv">
+        <h3>Daily spend calendar <span class="badge-new">new</span></h3>
+        <p class="demo">month grid · intensity = spend</p>
+        <div class="cal" id="cal"></div>
+      </div>
+    </div>
+
+    <div class="card rv" style="margin-top:16px">
+      <h3>Activity heatmap<span class="mono" style="color:var(--ink-faint)">local time</span></h3>
+      <div class="heat" id="heat"></div>
+      <div class="heatft">
+        <span>Peak spend: <b style="color:var(--clay)">Wednesday, 3 PM</b></span>
+        <span class="scalekey">less <i style="background:var(--line-soft)"></i><i style="background:color-mix(in srgb,var(--clay) 35%,transparent)"></i><i style="background:var(--clay)"></i> more</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PIE / DONUT (NEW) ============ -->
+  <section class="sec" id="pie">
+    <div class="sec-h"><h2>Pie &amp; donut <span class="badge-new" style="font-size:11px">new</span></h2><span class="n mono">part-to-whole composition</span></div>
+    <p class="lede">For share-of-total figures — token mix, tool mix, cost share by model. The <b>donut</b> is the default (its hole holds the total); the <b>pie</b> is the dense variant. Both draw from the shared accent palette in fixed order and pair with a value-and-percent legend. Segments animate in on reveal.</p>
+    <div class="grid g2" style="align-items:start">
+      <div class="card rv">
+        <h3>Token mix<span class="mono" style="color:var(--ink-faint)">donut · default</span></h3>
+        <div class="donut-wrap">
+          <div class="donut" id="donut"></div>
+          <div class="donut-legend" id="donutLegend"></div>
+        </div>
+      </div>
+      <div class="card rv">
+        <h3>Tool mix<span class="mono" style="color:var(--ink-faint)">pie · dense variant</span></h3>
+        <div class="donut-wrap">
+          <div class="donut" id="pieChart"></div>
+          <div class="donut-legend" id="pieLegend"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MULTI-COLUMN TEXT (NEW) ============ -->
+  <section class="sec" id="coltext">
+    <div class="sec-h"><h2>Multi-column text card <span class="badge-new" style="font-size:11px">new</span></h2><span class="n mono">long-form copy inside the card system</span></div>
+    <p class="lede">Two variants for narrative content — an executive summary, methodology notes, a changelog. <b>Editorial</b> flows one body of text across balanced columns with a drop-cap. <b>Structured</b> splits into headed, numbered columns for parallel points. Both collapse to a single column on mobile.</p>
+
+    <div class="card rv" style="margin-bottom:16px">
+      <h3>Editorial columns<span class="mono" style="color:var(--ink-faint)">flowing · drop-cap</span></h3>
+      <div class="coltext">
+        <p class="kick">This 30-day window cost <b>$6.62</b> across 39 sessions — 18% above the prior month, driven almost entirely by a single project migrating to Opus 4.8. The headline number hides a healthier story underneath.</p>
+        <p>Cache did the heavy lifting: 99% of tokens were served from cache reads rather than billed fresh, holding the effective rate to roughly $0.17 a session. Without that read/create ratio of 10:1, the same work would have cost several times as much.</p>
+        <p>Spend clusters on weekday afternoons, peaking Wednesday at 3&nbsp;PM. Weekends barely register, which suggests the tool is doing focused, working-hours work rather than idle exploration — a useful signal when deciding where to invest next.</p>
+        <p>The projection to a full 30 days lands near $8.10 if the current run-rate holds. Nothing here left the machine; every figure was read from local session logs.</p>
+      </div>
+    </div>
+
+    <div class="card rv">
+      <h3>Structured columns<span class="mono" style="color:var(--ink-faint)">headed · numbered</span></h3>
+      <div class="colcards">
+        <div>
+          <div class="idx">01</div>
+          <h4>What it reads</h4>
+          <p>Local session logs only — cost, tokens, cache splits, timestamps, model, and project. No network calls, no upload, no account required.</p>
+        </div>
+        <div>
+          <div class="idx">02</div>
+          <h4>How it counts</h4>
+          <p>Every dollar is itemised per session and rolled up by day, model, and project. Cache reads are separated from creates so the real bill is visible.</p>
+        </div>
+        <div>
+          <div class="idx">03</div>
+          <h4>Why it matters</h4>
+          <p>Cost-per-hour of focus, not idle minutes. Knowing where budget goes turns an opaque subscription into a line-item you can actually manage.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CONTENT ============ -->
+  <section class="sec" id="content">
+    <div class="sec-h"><h2>Callouts &amp; notes <span class="badge-new" style="font-size:11px">new</span></h2><span class="n mono">inline emphasis within a flow</span></div>
+    <div class="card rv">
+      <h3>Note variants</h3>
+      <p class="demo">default · info · warn · ok — left-rule accent</p>
+      <div style="margin-top:12px">
+        <div class="note"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/></svg><div class="txt"><b>Local only.</b> Every figure in this report was read from files on this machine. Nothing is transmitted, cached remotely, or attached to an account.</div></div>
+        <div class="note info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg><div class="txt"><b>Projection is a forecast.</b> The dashed line extends the current run-rate seven days out — it is not a commitment.</div></div>
+        <div class="note warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg><div class="txt"><b>Spend up 18%.</b> A single project drove most of the increase. Filter by project to see the breakdown.</div></div>
+        <div class="note ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6 9 17l-5-5"/></svg><div class="txt"><b>Cache is working.</b> 99% hit rate means you're not paying twice for the same context.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TABLE + ROADMAP ============ -->
+  <section class="sec" id="table">
+    <div class="sec-h"><h2>Table &amp; roadmap</h2><span class="n mono">dense records · status cards</span></div>
+    <div class="card rv" style="padding:22px 22px 8px;margin-bottom:16px">
+      <h3 style="margin-bottom:6px">Recent sessions</h3>
+      <table class="tbl">
+        <thead><tr><th>Timestamp</th><th class="hide-sm">Session</th><th>Model</th><th>Cost</th><th>Tokens</th></tr></thead>
+        <tbody id="sessRows"></tbody>
+      </table>
+    </div>
+    <div class="road" id="road"></div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>Design system for <b style="color:var(--clay)">/show-insights</b> — extend, don't reinvent</span>
+    <span>★ = component added beyond the original report</span>
+    <span>claude-code insights · design system v1.0</span>
+  </div>
+</footer>
+
+<script>
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const el = (t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!=null)e.innerHTML=h;return e;};
+const PALETTE=['--clay','--amber','--sage','--azure','--ink-soft'];
+
+/* ---------- FOUNDATION render ---------- */
+const COLORS=[
+  ['--paper','paper'],['--ink','ink'],['--ink-soft','ink-soft'],['--line','line'],
+  ['--clay','clay'],['--clay-deep','clay-deep'],['--amber','amber'],
+  ['--sage','sage'],['--azure','azure'],['--red','red']
+];
+document.getElementById('swatches').innerHTML=COLORS.map(([v,n])=>
+  `<div class="sw"><div class="chip" style="background:var(${v})"></div><div class="meta"><b>${n}</b><span>${v}</span></div></div>`).join('');
+const SCALE=[4,8,12,16,22,32,48];
+document.getElementById('scaleRow').innerHTML=SCALE.map(s=>
+  `<div class="scale-box"><i style="width:${s}px;height:${s}px"></i>${s}</div>`).join('');
+
+/* ---------- DATA ---------- */
+const KPI=[
+  {lbl:'Total spend',val:'$6.62',sub:'39 sessions',d:'+18%',up:true},
+  {lbl:'Output tokens',val:'917.8k',sub:'2.4M in / 917.8k out',d:'+18%',up:true},
+  {lbl:'Cache hit rate',val:'99%',sub:'39.1M read of 43.0M',d:'+2.4%',up:true},
+  {lbl:'$ per session',val:'$0.17',sub:'p90 $0.42',d:'-9%',up:false},
+];
+const spk=seed=>Array.from({length:26},(_,i)=>Math.max(.08,Math.min(1,Math.sin(seed*3.7+i*.9)*.5+Math.sin(i*.4)*.3+.55)));
+const MODELS=[{name:'claude-opus-4-8',amt:'$6.55',v:6.55,c:'--clay'},{name:'claude-opus-4-7',amt:'$0.06',v:0.06,c:'--amber'},{name:'claude-sonnet-4-6',amt:'$0.01',v:0.01,c:'--sage'}];
+const PROJ=[{name:'dev/david-ogilvy',amt:'$6.55',v:6.55,c:'--clay'},{name:'skillsc/dev/exp1',amt:'$0.09',v:0.09,c:'--amber'},{name:'work/recs/00042',amt:'$0.04',v:0.04,c:'--azure'},{name:'dev/agent-report',amt:'$0.02',v:0.02,c:'--sage'},{name:'refinement/spec',amt:'$0.01',v:0.01,c:'--ink-soft'}];
+const SESS=[['2026-07-02 17:36','8a2f9d05','opus-4-8','$0.15','300,705'],['2026-07-02 16:14','a0be20aa','opus-4-8','$0.09','39,748'],['2026-07-02 14:16','c65fdc0c','opus-4-8','$0.08','2,824,554'],['2026-07-02 13:47','5fbd5567','opus-4-8','$0.08','621,186'],['2026-07-02 12:49','a888b34d','opus-4-8','$0.07','2,352,010'],['2026-07-02 11:02','11ta5ef0','opus-4-7','$0.06','214,552'],['2026-07-02 10:53','c33ef128','sonnet-4-6','$0.01','138,112']];
+const ROAD=[{st:'ship',t:'Prompt patterns',d:'See how long your prompts run and how quickly Claude answers.'},{st:'ship',t:'Task completion',d:'Track which tasks you finish and which stall, session by session.'},{st:'next',t:'Active-time tracking',d:'Measure real working time so cost-per-hour counts focus, not idle minutes.'},{st:'next',t:'LOC coverage',d:'Match lines changed against dollars spent per shipped diff.'},{st:'idea',t:'Statusline archive',d:'Keep context and rate-limit headroom to watch the trend over time.'},{st:'idea',t:'Cross-tool',d:'Add up AI-coding spend across Claude Code, Codex, and Copilot.'}];
+// pie/donut data
+const TOKMIX=[{k:'cache read',v:88,c:'--sage'},{k:'cache create',v:9,c:'--amber'},{k:'output',v:2,c:'--clay'},{k:'input',v:1,c:'--azure'}];
+const TOOLMIX=[{k:'Edit',v:34,c:'--clay'},{k:'Bash',v:26,c:'--amber'},{k:'Read',v:21,c:'--sage'},{k:'Grep',v:12,c:'--azure'},{k:'Write',v:7,c:'--ink-soft'}];
+// column data
+const BYDAY=[{label:'Mon',v:1.1},{label:'Tue',v:0.7},{label:'Wed',v:1.6},{label:'Thu',v:1.2},{label:'Fri',v:0.9},{label:'Sat',v:0.3},{label:'Sun',v:0.2}].map(d=>({...d,disp:'$'+d.v}));
+const BYMONTH=[{label:'Mar',v:2.1},{label:'Apr',v:3.4},{label:'May',v:4.9},{label:'Jun',v:5.6},{label:'Jul',v:6.6}].map(d=>({...d,disp:'$'+d.v}));
+
+/* ---------- KPI cards ---------- */
+const kpiBox=document.getElementById('kpi');
+KPI.forEach((k,i)=>{
+  const c=el('div','card stat rv');const s=spk(i+1);
+  c.innerHTML=`<div class="top"><h3>${k.lbl}</h3><span class="delta ${k.up?'up':'down'}">${k.up?'&#8599;':'&#8600;'} ${k.d.replace(/[-+]/,'')}</span></div>
+    <div class="val">${k.val}</div><div class="sub">${k.sub}</div><div class="spark">${s.map(()=>'<i></i>').join('')}</div>`;
+  kpiBox.appendChild(c);
+  const bars=c.querySelectorAll('.spark i');
+  requestAnimationFrame(()=>bars.forEach((b,j)=>{b.style.height=(s[j]*100)+'%';b.style.background=j%5===0?(k.up?'var(--sage)':'var(--red)'):(s[j]>.85?'var(--clay)':'var(--line)');}));
+});
+
+/* ---------- bar lists ---------- */
+function drawBars(id,data){
+  const box=document.getElementById(id);const max=Math.max(...data.map(d=>d.v));
+  box.innerHTML=data.map(d=>`<div class="brow"><span class="name">${d.name}</span>
+    <span class="track"><i data-w="${(d.v/max*100).toFixed(1)}" style="background:${css(d.c)}"></i></span>
+    <span class="amt">${d.amt}</span></div>`).join('');
+  requestAnimationFrame(()=>box.querySelectorAll('.track>i').forEach(i=>i.style.width=i.dataset.w+'%'));
+}
+
+/* ---------- area chart ---------- */
+const NDAYS=30,dayInc=[];for(let i=0;i<NDAYS;i++)dayInc.push(0.10+(Math.sin(i*.7)*.045+.11)+(i>24?.09:0));
+let acc=0;const cum=dayInc.map(v=>acc+=v);const CUM=cum.map(v=>v*6.62/cum[NDAYS-1]);
+const FC=[];let last=CUM[NDAYS-1];for(let i=0;i<7;i++){last+=.21;FC.push(last);}
+function drawArea(){
+  const box=document.getElementById('areaChart');const W=box.clientWidth||600,H=200,P=8;
+  const all=[0,...CUM,...FC];const max=all[all.length-1]*1.05,n=all.length-1;
+  const X=i=>P+(i/n)*(W-P*2),Y=v=>H-6-(v/max)*(H-24);
+  const seg=(arr,off)=>arr.map((v,i)=>`${i?'L':'M'}${X(i+off).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+  const actPath=seg([0,...CUM],0),fcPath=seg([CUM[CUM.length-1],...FC],NDAYS);
+  const area=`${actPath} L${X(NDAYS).toFixed(1)} ${H-6} L${X(0).toFixed(1)} ${H-6} Z`;
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" style="overflow:visible">
+    <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${css('--clay')}" stop-opacity=".38"/><stop offset="1" stop-color="${css('--clay')}" stop-opacity="0"/></linearGradient></defs>
+    ${[.25,.5,.75].map(f=>`<line x1="${P}" y1="${(H-6)-f*(H-24)}" x2="${W-P}" y2="${(H-6)-f*(H-24)}" stroke="${css('--line-soft')}" stroke-width="1"/>`).join('')}
+    <path d="${area}" fill="url(#ag)"/>
+    <path class="apath" d="${actPath}" fill="none" stroke="${css('--clay')}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${fcPath}" fill="none" stroke="${css('--ink-faint')}" stroke-width="2" stroke-dasharray="2 6" stroke-linecap="round"/>
+    <circle cx="${X(NDAYS)}" cy="${Y(CUM[NDAYS-1])}" r="4.5" fill="${css('--clay')}" stroke="${css('--paper')}" stroke-width="2"/>
+    <circle cx="${X(n)}" cy="${Y(FC[6])}" r="3.5" fill="${css('--ink-faint')}"/></svg>`;
+  const ap=box.querySelector('.apath');if(ap&&!REDUCED){const L=ap.getTotalLength();ap.style.strokeDasharray=L;ap.style.strokeDashoffset=L;requestAnimationFrame(()=>{ap.style.transition='stroke-dashoffset 1.6s cubic-bezier(.2,.8,.2,1)';ap.style.strokeDashoffset=0;});}
+}
+
+/* ---------- gauge ---------- */
+function drawGauge(){
+  const box=document.getElementById('gauge');const val=99,S=180,R=72,cx=S/2,cy=S/2,a0=Math.PI*.85,a1=Math.PI*2.15;
+  const pt=a=>[cx+R*Math.cos(a),cy+R*Math.sin(a)];
+  const arc=(from,to,large)=>{const[x0,y0]=pt(from),[x1,y1]=pt(to);return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${R} ${R} 0 ${large} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;};
+  box.innerHTML=`<svg viewBox="0 0 ${S} ${S/1.5}" width="180" style="max-width:100%">
+    <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="${css('--amber')}"/><stop offset=".5" stop-color="${css('--clay')}"/><stop offset="1" stop-color="${css('--sage')}"/></linearGradient></defs>
+    <path d="${arc(a0,a1,1)}" fill="none" stroke="${css('--line-soft')}" stroke-width="14" stroke-linecap="round"/>
+    <path class="garc" d="${arc(a0,a1,1)}" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round"/>
+    <circle cx="${pt(a0+(a1-a0)*(val/100))[0].toFixed(1)}" cy="${pt(a0+(a1-a0)*(val/100))[1].toFixed(1)}" r="7" fill="${css('--paper')}" stroke="${css('--sage')}" stroke-width="3.5"/></svg>`;
+  const a=box.querySelector('.garc'),L=a.getTotalLength();a.style.strokeDasharray=L;a.style.strokeDashoffset=REDUCED?L*(1-val/100):L;
+  if(!REDUCED)requestAnimationFrame(()=>{a.style.transition='stroke-dashoffset 1.6s cubic-bezier(.2,.8,.2,1)';a.style.strokeDashoffset=L*(1-val/100);});
+}
+
+/* ---------- PIE / DONUT (NEW) ---------- */
+function drawDonut(id,legendId,data,{centerVal,centerSub}={}){
+  const box=document.getElementById(id);const total=data.reduce((s,d)=>s+d.v,0);
+  const R=64,SW=26,C=100,circ=2*Math.PI*R;let accd=0;
+  const segs=data.map(d=>{
+    const dash=d.v/total*circ;
+    const s=`<circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="${css(d.c)}" stroke-width="${SW}" stroke-linecap="butt"
+      stroke-dasharray="${dash.toFixed(2)} ${(circ-dash).toFixed(2)}" stroke-dashoffset="${(-accd).toFixed(2)}" transform="rotate(-90 ${C} ${C})"/>`;
+    accd+=dash;return s;}).join('');
+  box.innerHTML=`<svg viewBox="0 0 200 200" width="176" style="max-width:100%">
+    <g class="donut-g" style="transform-origin:100px 100px">${segs}</g>
+    ${centerVal?`<text x="100" y="97" text-anchor="middle" class="donut-val">${centerVal}</text><text x="100" y="118" text-anchor="middle" class="donut-sub">${centerSub||''}</text>`:''}</svg>`;
+  if(!REDUCED){const g=box.querySelector('.donut-g');g.style.opacity=0;g.style.transform='rotate(-14deg) scale(.92)';
+    requestAnimationFrame(()=>{g.style.transition='opacity .7s ease, transform .9s cubic-bezier(.2,.8,.2,1)';g.style.opacity=1;g.style.transform='none';});}
+  document.getElementById(legendId).innerHTML=data.map(d=>
+    `<div class="li"><i style="background:${css(d.c)}"></i><b>${d.k}</b><span class="pc">${(d.v/total*100).toFixed(0)}%</span></div>`).join('');
+}
+function drawPie(id,legendId,data){
+  const box=document.getElementById(id);const total=data.reduce((s,d)=>s+d.v,0),cx=100,cy=100,r=88;let a0=-Math.PI/2;
+  const paths=data.map(d=>{
+    const a1=a0+d.v/total*2*Math.PI,x0=cx+r*Math.cos(a0),y0=cy+r*Math.sin(a0),x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1),large=(a1-a0)>Math.PI?1:0;
+    const p=`<path d="M${cx} ${cy} L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z" fill="${css(d.c)}" stroke="${css('--paper')}" stroke-width="1.5"/>`;
+    a0=a1;return p;}).join('');
+  box.innerHTML=`<svg viewBox="0 0 200 200" width="176" style="max-width:100%"><g class="donut-g" style="transform-origin:100px 100px">${paths}</g></svg>`;
+  if(!REDUCED){const g=box.querySelector('.donut-g');g.style.opacity=0;g.style.transform='rotate(-14deg) scale(.92)';
+    requestAnimationFrame(()=>{g.style.transition='opacity .7s ease, transform .9s cubic-bezier(.2,.8,.2,1)';g.style.opacity=1;g.style.transform='none';});}
+  document.getElementById(legendId).innerHTML=data.map(d=>
+    `<div class="li"><i style="background:${css(d.c)}"></i><b>${d.k}</b><span class="pc">${(d.v/total*100).toFixed(0)}%</span></div>`).join('');
+}
+
+/* ---------- COLUMN CHART (NEW) ---------- */
+function drawCols(data){
+  const box=document.getElementById('cols');const max=Math.max(...data.map(d=>d.v));
+  box.innerHTML=data.map((d,i)=>`<div class="col"><div class="track"><div class="bar" data-h="${(d.v/max*88+8).toFixed(0)}" data-v="${d.disp||d.v}" style="background:${css(PALETTE[i%PALETTE.length])}"></div></div><div class="lbl">${d.label}</div></div>`).join('');
+  requestAnimationFrame(()=>box.querySelectorAll('.bar').forEach(b=>b.style.height=b.dataset.h+'%'));
+}
+
+/* ---------- SCATTER (NEW) ---------- */
+function drawScatter(){
+  const box=document.getElementById('scatter');const W=box.clientWidth||320,H=210,P=26;
+  // x = tokens (log-ish, normalised), y = cost
+  const pts=SESS.map(r=>({t:+r[4].replace(/,/g,''),c:+r[3].slice(1),m:r[2]}));
+  const tx=pts.map(p=>Math.log10(p.t)),maxTx=Math.max(...tx),minTx=Math.min(...tx),maxC=Math.max(...pts.map(p=>p.c))*1.15;
+  const X=v=>P+((Math.log10(v)-minTx)/(maxTx-minTx||1))*(W-P*1.4);
+  const Y=v=>H-P-(v/maxC)*(H-P*1.6);
+  const colFor=m=>m.includes('opus-4-8')?'--clay':m.includes('opus-4-7')?'--amber':'--sage';
+  box.innerHTML=`<svg class="scatter" viewBox="0 0 ${W} ${H}" width="100%" height="${H}">
+    <line class="axl" x1="${P}" y1="${H-P}" x2="${W-6}" y2="${H-P}"/>
+    <line class="axl" x1="${P}" y1="8" x2="${P}" y2="${H-P}"/>
+    ${[.5,1].map(f=>`<line class="axl" x1="${P}" y1="${Y(maxC*f)}" x2="${W-6}" y2="${Y(maxC*f)}" opacity=".5"/><text x="${P-5}" y="${Y(maxC*f)+3}" text-anchor="end">$${(maxC*f).toFixed(2)}</text>`).join('')}
+    ${pts.map(p=>`<circle cx="${X(p.t).toFixed(1)}" cy="${Y(p.c).toFixed(1)}" r="6" fill="${css(colFor(p.m))}" fill-opacity=".85" stroke="${css('--paper')}" stroke-width="1.5"><title>${p.m} · $${p.c} · ${p.t.toLocaleString()} tok</title></circle>`).join('')}
+    <text x="${W-6}" y="${H-8}" text-anchor="end">tokens →</text>
+    <text x="${P-4}" y="14" text-anchor="start">cost ↑</text></svg>`;
+}
+
+/* ---------- CALENDAR HEATMAP (NEW) ---------- */
+function drawCal(){
+  const box=document.getElementById('cal');const days=['S','M','T','W','T','F','S'];
+  let html=days.map(d=>`<div class="dh">${d}</div>`).join('');
+  const startPad=2;for(let i=0;i<startPad;i++)html+='<div class="c empty"></div>';
+  for(let d=1;d<=30;d++){
+    const dow=(d+startPad-1)%7;let v=0;
+    if(dow>0&&dow<6)v=Math.max(0,Math.sin((d/30)*Math.PI)*(.5+((d*7)%9)/12));
+    v=Math.min(1,v);
+    const bg=v<.06?'var(--line-soft)':`color-mix(in srgb, var(--clay) ${Math.round(v*82+12)}%, transparent)`;
+    html+=`<div class="c ${v>.5?'on':''}" style="background:${bg}" title="Jun ${d} · $${(v*0.5).toFixed(2)}">${d}</div>`;
+  }
+  box.innerHTML=html;
+}
+
+/* ---------- heatmap ---------- */
+function drawHeat(){
+  const box=document.getElementById('heat');const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  let html='<div></div>'+Array.from({length:24},(_,h)=>`<div class="hd">${h%6===0?h:''}</div>`).join('');
+  for(let d=0;d<7;d++){html+=`<div class="rl">${days[d]}</div>`;
+    for(let h=0;h<24;h++){let v=0;if(h>=8&&h<=22){v=Math.max(0,Math.sin((h-6)/16*Math.PI)*(d<5?1:.4));if(h>=13&&h<=17&&d<5)v*=1.4;}
+      v=Math.min(1,v*(.7+((d*24+h)%7)/9));
+      const bg=v<.05?'var(--line-soft)':`color-mix(in srgb, var(--clay) ${Math.round(v*88+8)}%, transparent)`;
+      html+=`<div class="cell" style="background:${bg}" title="${days[d]} ${h}:00"></div>`;}}
+  box.innerHTML=html;
+}
+
+/* ---------- table + roadmap ---------- */
+document.getElementById('sessRows').innerHTML=SESS.map(r=>`<tr><td>${r[0]}</td><td class="hide-sm">${r[1]}</td><td><span class="tag">${r[2]}</span></td><td class="n">${r[3]}</td><td class="n">${r[4]}</td></tr>`).join('');
+document.getElementById('road').innerHTML=ROAD.map(r=>`<div class="ritem rv"><span class="st ${r.st}">${r.st==='ship'?'shipped':r.st==='next'?'next up':'idea'}</span><h4>${r.t}</h4><p>${r.d}</p></div>`).join('');
+
+/* ---------- tabs demo (column chart source) ---------- */
+document.getElementById('tabSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  document.querySelectorAll('#tabSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  const day=b.dataset.t==='day';document.getElementById('colSrc').textContent=day?'by day':'by month';
+  drawCols(day?BYDAY:BYMONTH);
+});
+
+/* ---------- render all ---------- */
+function drawAll(){
+  drawBars('modelBars',MODELS);drawBars('projBars',PROJ);drawArea();drawGauge();
+  drawDonut('donut','donutLegend',TOKMIX,{centerVal:'42.4M',centerSub:'tokens'});
+  drawPie('pieChart','pieLegend',TOOLMIX);
+  drawCols(BYDAY);drawScatter();drawCal();drawHeat();
+}
+drawAll();
+
+/* ---------- theme ---------- */
+const root=document.documentElement,thBtn=document.getElementById('themeBtn'),thI=document.getElementById('thI');
+const sun='<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"/>';
+const moon='<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>';
+function applyTheme(t){root.setAttribute('data-theme',t);thI.innerHTML=t==='dark'?sun:moon;localStorage.setItem('ds-theme',t);drawAll();}
+thBtn.addEventListener('click',()=>applyTheme(root.getAttribute('data-theme')==='dark'?'light':'dark'));
+const saved=localStorage.getItem('ds-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+root.setAttribute('data-theme',saved);thI.innerHTML=saved==='dark'?sun:moon;
+
+/* ---------- reveal on scroll ---------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
+document.querySelectorAll('.rv').forEach(n=>io.observe(n));
+
+/* ---------- misc ---------- */
+addEventListener('scroll',()=>document.getElementById('topbar').classList.toggle('stuck',scrollY>10));
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{drawArea();drawScatter();},180);});
+</script>
+</body>
+</html>
