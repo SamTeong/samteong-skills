@@ -171,6 +171,88 @@ a{color:inherit}
 .stat .sub{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
 .stat .spark{margin-top:14px;height:38px;display:flex;align-items:flex-end;gap:2px}
 .stat .spark i{flex:1;border-radius:2px 2px 0 0;background:var(--line);transition:height .6s cubic-bezier(.2,.8,.2,1)}
+.delta.neu{color:var(--ink-soft);background:color-mix(in srgb,var(--ink-faint) 14%,transparent)}
+
+/* ---------- metric / ratio card ★ (numbers-first, low-text) ---------- */
+.ratiocard .ratio{padding:18px 0}
+.ratiocard .ratio:first-of-type{padding-top:20px}
+.ratiocard .ratio:last-of-type{padding-bottom:2px}
+.ratiocard .ratio + .ratio{border-top:1px solid var(--line-soft)}
+.ratio-eyebrow{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.ratio-hero{display:flex;align-items:baseline;gap:10px;margin:9px 0 7px}
+.ratio-val{font-family:var(--mono);font-weight:700;font-size:clamp(30px,4.2vw,40px);line-height:.95;letter-spacing:-.03em;
+  color:var(--ink);font-variant-numeric:tabular-nums}
+.ratio-val .unit{color:var(--clay);font-size:.44em;font-weight:600;letter-spacing:0;margin-left:2px}
+.ratio-hero .delta{align-self:center;margin-left:auto}
+.ratio-ctx{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);letter-spacing:.01em}
+.ratio-ctx b{color:var(--ink-soft);font-weight:600}
+.ratio-meter{height:5px;border-radius:6px;background:var(--line-soft);overflow:hidden;margin-top:11px;max-width:230px}
+.ratio-meter>i{display:block;height:100%;width:0;border-radius:6px;background:var(--clay);transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+.ratio-spark{margin-top:12px;height:30px;display:flex;align-items:flex-end;gap:2px;max-width:210px}
+.ratio-spark i{flex:1;border-radius:2px 2px 0 0;background:var(--line);min-height:2px;transition:height .7s cubic-bezier(.2,.8,.2,1)}
+.ratio-spark i:last-child{background:var(--clay)}
+/* compact trio variant — three tight ratios, no dividers */
+.ratiocard.compact .ratio{padding:12px 0;display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:6px 12px}
+.ratiocard.compact .ratio-eyebrow{grid-row:1;align-self:end}
+.ratiocard.compact .ratio-val{font-size:22px}
+.ratiocard.compact .ratio-ctx{grid-column:1 / -1;margin-top:-2px}
+
+/* ---------- grouped stat list ★ (definition columns — table-lite) ---------- */
+.statgroups{display:grid;align-items:stretch}
+.statgroups.cols-2{grid-template-columns:1fr 1fr}
+.statgroups.cols-3{grid-template-columns:repeat(3,1fr)}
+.statgroup{padding:2px clamp(20px,3vw,32px) 2px}
+.statgroup:first-child{padding-left:0}
+.statgroup:last-child{padding-right:0}
+.statgroup + .statgroup{border-left:1px solid var(--line-soft)}
+.statgroup > .gh{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink);margin:0 0 4px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.kv{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:14px;padding:9px 0;font-family:var(--mono);font-size:12.5px}
+.kv + .kv{border-top:1px solid var(--line-soft)}
+.kv .k{color:var(--ink-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kv .v{color:var(--ink);font-weight:700;text-align:right;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.kv .v .u{color:var(--ink-faint);font-weight:500;font-size:.82em;margin-left:1px}
+.kv.muted .v{color:var(--ink-faint)}
+/* airier variant — no per-row rules, lean on even spacing */
+.statgroups.plain .kv{border-top:none;padding:7px 0}
+@media(max-width:640px){
+  .statgroups.cols-2,.statgroups.cols-3{grid-template-columns:1fr}
+  .statgroup,.statgroup:first-child,.statgroup:last-child{padding:0;border-left:none}
+  .statgroup + .statgroup{border-top:1px solid var(--line-soft);margin-top:16px;padding-top:16px}
+}
+
+/* ---------- section header, standardized ★ ---------- */
+.shead{--ctl-h:34px;margin-bottom:22px}
+.shead-title{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.shead-title h2{font-family:var(--disp);font-weight:600;font-size:clamp(20px,2.6vw,27px);letter-spacing:-.02em;color:var(--ink)}
+.shead-title .sub{font-family:var(--mono);font-size:12px;color:var(--ink-faint);letter-spacing:.02em}
+.shead > .lede{margin:12px 0 0}
+/* controls row: filters left, toggle right; both wrap, toggle stays top-right */
+.shead-controls{display:flex;flex-wrap:nowrap;align-items:flex-start;justify-content:space-between;gap:12px 20px;margin-top:16px}
+.shead-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:1 1 0;min-width:0}
+.shead-toggle{flex:0 0 auto;margin-left:auto;display:flex;align-items:center;gap:10px;min-height:var(--ctl-h)}
+.shead-flabel{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-faint);align-self:center}
+/* keep the segmented toggle the exact height of a filter pill so their text lines up */
+.shead .seg button{height:calc(var(--ctl-h) - 8px);padding:0 14px;display:inline-flex;align-items:center}
+
+/* filter pill (new) — shared by range + model/series filters */
+.fpill{height:var(--ctl-h);display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;font-weight:600;
+  letter-spacing:.02em;color:var(--ink-soft);background:var(--card-2);border:1px solid var(--card-brd);border-radius:var(--r-pill);
+  padding:0 15px;cursor:pointer;box-shadow:var(--card-shadow);white-space:nowrap;
+  transition:color .18s,border-color .18s,background .18s,transform .18s,opacity .18s}
+.fpill:hover{color:var(--ink);transform:translateY(-1px)}
+.fpill .fdot{width:10px;height:10px;border-radius:3px;flex:none}
+.fpill.on{color:#fff;background:var(--clay);border-color:transparent;box-shadow:0 4px 12px -4px var(--clay)}
+.fpill.on .fdot{box-shadow:0 0 0 1.5px rgba(255,255,255,.7)}
+.fpill.off{opacity:.42}
+.fpill.off:hover{opacity:.7}
+.fpill.ghost{background:transparent;box-shadow:none;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em}
+.fpill.ghost:hover{border-color:var(--clay);color:var(--clay)}
+@media(max-width:640px){
+  .shead-controls{flex-direction:column;align-items:stretch}
+  .shead-toggle{margin-left:0}
+}
 
 /* ---------- legend + bars (from original.html) ---------- */
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:14px}
@@ -291,6 +373,58 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:40px}
 .foot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
 
 /* reveal */
+/* ---------- section floating sidebar ★ ---------- */
+.secnav{position:relative;display:inline-block;font-family:var(--mono)}
+.secnav-rail{display:flex;flex-direction:column;justify-content:center;gap:10px;width:26px;min-height:120px;padding:14px 6px;
+  background:var(--card);border:1px solid var(--card-brd);border-radius:var(--r-pill);box-shadow:var(--card-shadow);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);cursor:pointer;
+  transition:opacity .25s ease,transform .25s ease}
+.secnav-rail:hover{transform:translateX(-2px)}
+.secnav-ticks{display:flex;flex-direction:column;gap:9px}
+.secnav-ticks .tick{height:2px;border-radius:2px;background:var(--line);transition:background .2s,opacity .2s}
+.secnav-ticks .tick.on{background:var(--clay)}
+.secnav-ticks .tick.off{opacity:.4;background:repeating-linear-gradient(90deg,var(--ink-faint) 0 3px,transparent 3px 6px)}
+
+.secnav-panel{position:absolute;top:0;right:0;min-width:248px;padding:8px;z-index:5;
+  background:var(--card-2);border:1px solid var(--card-brd);border-radius:var(--r-lg);box-shadow:var(--card-shadow);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  opacity:0;transform:translateY(6px) scale(.98);transform-origin:top right;pointer-events:none;
+  transition:opacity .22s ease,transform .22s cubic-bezier(.2,.8,.2,1)}
+.secnav:hover .secnav-panel,.secnav:focus-within .secnav-panel,.secnav.open .secnav-panel{opacity:1;transform:none;pointer-events:auto}
+/* in the guide the rail fades so it doesn't sit under the panel; in real use the panel simply replaces it */
+.secnav:hover .secnav-rail,.secnav:focus-within .secnav-rail,.secnav.open .secnav-rail{opacity:0;pointer-events:none}
+
+.secnav-top{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);text-decoration:none;
+  padding:8px 10px;margin-bottom:2px;border-radius:var(--r-sm);cursor:pointer;transition:background .15s,color .15s}
+.secnav-top:hover{background:var(--paper-2);color:var(--ink)}
+.secnav-top svg{width:13px;height:13px;flex:none}
+
+.secnav-items{display:flex;flex-direction:column}
+.secnav-item{display:grid;grid-template-columns:16px 1fr 24px;align-items:center;gap:8px;user-select:none;
+  padding:7px 8px;border-radius:var(--r-sm);font-size:12.5px;color:var(--ink);transition:background .15s}
+.secnav-item:hover{background:var(--paper-2)}
+.secnav-item.dragging{opacity:.5;background:var(--paper-3);box-shadow:var(--card-shadow)}
+.secnav-grip{display:grid;place-items:center;color:var(--ink-faint);cursor:grab;opacity:.55;transition:opacity .15s,color .15s}
+.secnav-item:hover .secnav-grip{opacity:1;color:var(--ink-soft)}
+.secnav-grip:active{cursor:grabbing}
+.secnav-grip svg{width:12px;height:12px}
+.secnav-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.secnav-eye{display:grid;place-items:center;width:24px;height:24px;padding:0;border:none;background:none;color:var(--ink-faint);
+  cursor:pointer;border-radius:6px;transition:color .15s,background .15s}
+.secnav-eye:hover{color:var(--clay);background:color-mix(in srgb,var(--clay) 12%,transparent)}
+.secnav-eye svg{width:15px;height:15px}
+.secnav-eye .eye-off{display:none}
+.secnav-item.hidden .secnav-label{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:var(--line-soft)}
+.secnav-item.hidden .secnav-eye .eye-on{display:none}
+.secnav-item.hidden .secnav-eye .eye-off{display:block}
+/* demo shell: give the panel room to overflow the card */
+.secnav-stage{position:relative;min-height:300px;overflow:visible;display:flex;justify-content:flex-end;align-items:flex-start}
+.secnav-stage .ghost{position:absolute;inset:0;display:flex;flex-direction:column;gap:10px;justify-content:center;
+  padding-right:60px;pointer-events:none}
+.secnav-stage .ghost i{height:9px;border-radius:5px;background:var(--line-soft)}
+.secnav-stage .ghost i:nth-child(2){width:70%}.secnav-stage .ghost i:nth-child(3){width:52%}
+.secnav-stage .ghost i:nth-child(4){width:64%}.secnav-stage .ghost i:nth-child(5){width:40%}
+
 .rv{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s cubic-bezier(.2,.8,.2,1)}
 .rv.in{opacity:1;transform:none}
 
@@ -343,10 +477,14 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:40px}
   <nav class="jump">
     <a href="#foundations">Foundations</a>
     <a href="#controls">Controls</a>
+    <a href="#sheader">Section header ★</a>
     <a href="#datacards">Data cards</a>
+    <a href="#ratios">Metric card ★</a>
+    <a href="#statlist">Stat list ★</a>
     <a href="#charts">Charts</a>
     <a href="#pie">Pie / donut ★</a>
     <a href="#coltext">Multi-column text ★</a>
+    <a href="#secnav">Section sidebar ★</a>
     <a href="#content">Content</a>
     <a href="#table">Table & roadmap</a>
   </nav>
@@ -429,6 +567,105 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:40px}
     </div>
   </section>
 
+  <!-- ============ SECTION HEADER ============ -->
+  <section class="sec" id="sheader">
+    <div class="sec-h"><h2>Section header <span class="badge-new" style="font-size:11px">new</span></h2><span class="n mono">one shell · title · filters · toggle</span></div>
+    <p class="lede">Every section opens with the same header shell, so the report reads as one document. It scales from a bare title to a title with filters and a toggle — the pieces keep the same type, height, and alignment throughout. The rule that makes it feel calm: <b>filters and the toggle share one control height</b>, so their text sits on the same line even when the filters wrap.</p>
+
+    <div style="display:grid;gap:0">
+
+      <!-- A: title + subtitle -->
+      <div style="padding:20px 0;border-top:1px solid var(--line)">
+        <p class="demo">A · title + subtitle</p>
+        <header class="shead" style="margin-bottom:0">
+          <div class="shead-title"><h2>When you work</h2><span class="sub">the hours where your spend actually happens</span></div>
+        </header>
+      </div>
+
+      <!-- B: + paragraph -->
+      <div style="padding:20px 0;border-top:1px solid var(--line)">
+        <p class="demo">B · title + subtitle + paragraph</p>
+        <header class="shead" style="margin-bottom:0">
+          <div class="shead-title"><h2>Token economics</h2><span class="sub">where the tokens go</span></div>
+          <p class="lede">The cache is doing the heavy lifting here — reads are billed once and reused, so the effective token count runs well above what you pay for. This paragraph is for sections that need a sentence of framing before the data.</p>
+        </header>
+      </div>
+
+      <!-- C: + filters, no toggle -->
+      <div style="padding:20px 0;border-top:1px solid var(--line)">
+        <p class="demo">C · title + subtitle + filters</p>
+        <header class="shead" style="margin-bottom:0">
+          <div class="shead-title"><h2>Spend over time</h2><span class="sub">cumulative to date, projected forward</span></div>
+          <div class="shead-controls">
+            <div class="shead-filters" data-single>
+              <button class="fpill on">last 7 days</button>
+              <button class="fpill">last 30 days</button>
+              <button class="fpill">all time</button>
+            </div>
+          </div>
+        </header>
+      </div>
+
+      <!-- D: + filters + toggle -->
+      <div style="padding:20px 0;border-top:1px solid var(--line)">
+        <p class="demo">D · title + filters + toggle (right)</p>
+        <header class="shead" style="margin-bottom:0">
+          <div class="shead-title"><h2>Breakdown</h2><span class="sub">cost by day or month, filterable by model</span></div>
+          <div class="shead-controls">
+            <div class="shead-filters">
+              <button class="fpill"><i class="fdot" style="background:var(--clay)"></i>claude-opus-4-7</button>
+              <button class="fpill"><i class="fdot" style="background:var(--amber)"></i>claude-opus-4-8</button>
+              <button class="fpill"><i class="fdot" style="background:var(--sage)"></i>claude-sonnet-4-6</button>
+              <button class="fpill on" data-all>all</button>
+            </div>
+            <div class="shead-toggle">
+              <div class="seg"><button class="on">by day</button><button>by month</button></div>
+            </div>
+          </div>
+        </header>
+      </div>
+
+      <!-- E: overflow — many filters wrap, toggle stays aligned -->
+      <div style="padding:20px 0;border-top:1px solid var(--line)">
+        <p class="demo">E · overflow — filters wrap, toggle holds the top-right line</p>
+        <header class="shead" style="margin-bottom:0">
+          <div class="shead-title"><h2>By model</h2><span class="sub">cost per model, filterable</span></div>
+          <div class="shead-controls">
+            <div class="shead-filters">
+              <button class="fpill"><i class="fdot" style="background:var(--clay)"></i>claude-opus-4-8</button>
+              <button class="fpill"><i class="fdot" style="background:var(--amber)"></i>claude-opus-4-7</button>
+              <button class="fpill"><i class="fdot" style="background:var(--sage)"></i>claude-sonnet-4-6</button>
+              <button class="fpill"><i class="fdot" style="background:var(--azure)"></i>claude-sonnet-4-5</button>
+              <button class="fpill"><i class="fdot" style="background:var(--clay-deep)"></i>claude-haiku-4-5</button>
+              <button class="fpill"><i class="fdot" style="background:var(--ink-soft)"></i>claude-opus-4-1</button>
+              <button class="fpill"><i class="fdot" style="background:var(--clay)"></i>claude-3-7-sonnet</button>
+              <button class="fpill"><i class="fdot" style="background:var(--amber)"></i>claude-3-5-haiku</button>
+              <button class="fpill on" data-all>all</button>
+            </div>
+            <div class="shead-toggle">
+              <div class="seg"><button class="on">by day</button><button>by month</button></div>
+            </div>
+          </div>
+        </header>
+      </div>
+
+      <!-- F: minimal label + ghost toggle -->
+      <div style="padding:20px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+        <p class="demo">F · leading label + single ghost toggle</p>
+        <header class="shead" style="margin-bottom:0">
+          <div class="shead-title"><h2>Insights roadmap</h2><span class="sub">what could come next</span></div>
+          <div class="shead-controls">
+            <div class="shead-filters">
+              <span class="shead-flabel">Roadmap</span>
+              <button class="fpill ghost">show available</button>
+            </div>
+          </div>
+        </header>
+      </div>
+
+    </div>
+  </section>
+
   <!-- ============ DATA CARDS ============ -->
   <section class="sec" id="datacards">
     <div class="sec-h"><h2>Data cards</h2><span class="n mono">the KPI + breakdown building blocks</span></div>
@@ -436,6 +673,169 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:40px}
     <div class="grid g2" style="margin-top:16px;align-items:start">
       <div class="card rv"><h3>Cost by model</h3><p class="demo">horizontal bar-list</p><div class="blist" id="modelBars"></div></div>
       <div class="card rv"><h3>Cost by project</h3><p class="demo">bar-list · truncating labels</p><div class="blist" id="projBars"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ METRIC / RATIO CARD ============ -->
+  <section class="sec" id="ratios">
+    <div class="sec-h"><h2>Metric / ratio card <span class="badge-new" style="font-size:11px">new</span></h2><span class="n mono">numbers first · minimal text</span></div>
+    <p class="lede">For cards where a few figures carry the whole story — the <b>Efficiency ratios</b> card, cost-per-unit, throughput. The number is the hero; everything else earns its place by giving that number <b>meaning</b>: a label of what it measures, a <b>trend</b> vs. the last period, and one light visual (a coverage <b>meter</b> or a <b>sparkline</b>) so the figure is scannable, not just stated.</p>
+
+    <div class="grid g3" style="align-items:start">
+
+      <!-- Before -->
+      <div class="card rv" style="opacity:.92">
+        <h3>Before</h3>
+        <p class="demo">two figures, a rule, captions — a lot of dead space</p>
+        <div style="padding:6px 0 4px">
+          <div style="font-family:var(--mono);font-weight:700;font-size:34px;letter-spacing:-.03em">$7.20<span style="color:var(--clay);font-size:.5em">/hr</span></div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-top:4px">7.1h active</div>
+          <hr style="border:none;border-top:1px solid var(--line-soft);margin:20px 0">
+          <div style="font-family:var(--mono);font-weight:700;font-size:34px;letter-spacing:-.03em">$0.023<span style="color:var(--clay);font-size:.5em">/line</span></div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-top:4px">2,077 lines · 13% coverage</div>
+        </div>
+      </div>
+
+      <!-- After -->
+      <div class="card ratiocard rv">
+        <h3>Efficiency ratios <span class="badge-new">after</span></h3>
+        <div class="ratio">
+          <div class="ratio-eyebrow">Cost / active hour</div>
+          <div class="ratio-hero"><span class="ratio-val">$7.20<span class="unit">/hr</span></span><span class="delta neu">&#8600; 6% · 7d</span></div>
+          <div class="ratio-ctx"><b>7.1h</b> active · <b>$51.10</b> total spend</div>
+        </div>
+        <div class="ratio">
+          <div class="ratio-eyebrow">Cost / line shipped</div>
+          <div class="ratio-hero"><span class="ratio-val">$0.023<span class="unit">/line</span></span><span class="delta neu">&#8599; 4% · 7d</span></div>
+          <div class="ratio-ctx"><b>2,077</b> lines · <b>13%</b> of spend became code</div>
+          <div class="ratio-meter"><i data-w="13%"></i></div>
+        </div>
+      </div>
+
+      <!-- Variants -->
+      <div class="grid" style="gap:16px">
+        <div class="card ratiocard rv">
+          <h3>Single hero + sparkline</h3>
+          <p class="demo">one dominant figure with trend</p>
+          <div class="ratio">
+            <div class="ratio-eyebrow">Total spend</div>
+            <div class="ratio-hero"><span class="ratio-val">$51.10</span><span class="delta up">&#8599; 18%</span></div>
+            <div class="ratio-ctx"><b>158.3M</b> tokens · <b>3</b> models</div>
+            <div class="ratio-spark" data-h="30,42,38,55,48,63,60,78,72,90,84,100"></div>
+          </div>
+        </div>
+        <div class="card ratiocard compact rv">
+          <h3>Compact trio</h3>
+          <p class="demo">three tight ratios, no dividers</p>
+          <div class="ratio"><span class="ratio-eyebrow">Cache read / write</span><span class="ratio-val">10.1&times;</span><span class="ratio-ctx"><b>39.1M</b> read · <b>3.88M</b> created</span></div>
+          <div class="ratio"><span class="ratio-eyebrow">Tokens / $</span><span class="ratio-val">3.1M</span><span class="ratio-ctx"><b>158.3M</b> over <b>$51.10</b></span></div>
+          <div class="ratio"><span class="ratio-eyebrow">Output / input</span><span class="ratio-val">1.79&times;</span><span class="ratio-ctx"><b>917.8k</b> out · <b>512.5k</b> in</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ GROUPED STAT LIST ============ -->
+  <section class="sec" id="statlist">
+    <div class="sec-h"><h2>Grouped stat list <span class="badge-new" style="font-size:11px">new</span></h2><span class="n mono">label → value · too few for a table</span></div>
+    <p class="lede">A handful of <b>label → value</b> rows split into two or three columns — the <b>Cadence / Delivery / Cost spread</b> and <b>Tool calls / Context / Ecosystem</b> cards. It's for data that's table-shaped but too sparse to justify a real table. Two things it fixes: the column header now uses the system's <b>mono-uppercase</b> label (not the display sans, which read as foreign), anchored by a rule; and the rhythm is regularised — even gutters, one row cadence, full-height dividers regardless of uneven row counts.</p>
+
+    <div style="display:grid;gap:16px;margin-bottom:16px">
+      <!-- Before -->
+      <div class="card rv" style="opacity:.94">
+        <h3>Before</h3>
+        <p class="demo">sans headers over mono rows · ragged spacing</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 24px;margin-top:6px">
+          <div>
+            <div style="font-family:var(--disp);font-weight:700;font-size:17px;margin-bottom:14px">Cadence</div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;padding:10px 0;border-bottom:1px solid var(--line-soft)"><span style="color:var(--ink-soft)">turns / session</span><b>2.3</b></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;padding:10px 0"><span style="color:var(--ink-soft)">tools / session</span><b>17.9</b></div>
+          </div>
+          <div style="border-left:1px solid var(--line-soft);padding-left:24px">
+            <div style="font-family:var(--disp);font-weight:700;font-size:17px;margin-bottom:14px">Delivery</div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;padding:10px 0;border-bottom:1px solid var(--line-soft)"><span style="color:var(--ink-soft)">lines / session</span><b>43</b></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;padding:10px 0;border-bottom:1px solid var(--line-soft)"><span style="color:var(--ink-soft)">lines / hour</span><b>292</b></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;padding:10px 0"><span style="color:var(--ink-soft)">churn (del/add)</span><b>0.21</b></div>
+          </div>
+          <div style="border-left:1px solid var(--line-soft);padding-left:24px">
+            <div style="font-family:var(--disp);font-weight:700;font-size:17px;margin-bottom:14px">Cost spread</div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;padding:10px 0;border-bottom:1px solid var(--line-soft)"><span style="color:var(--ink-soft)">median $/session</span><b>$0.00</b></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;padding:10px 0;border-bottom:1px solid var(--line-soft)"><span style="color:var(--ink-soft)">p90 $/session</span><b>$1.61</b></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:12.5px;padding:10px 0"><span style="color:var(--ink-soft)">max $/session</span><b>$19.75</b></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- After -->
+      <div class="card rv">
+        <h3>After <span class="badge-new">after</span></h3>
+        <p class="demo">mono-uppercase headers with a rule · even rhythm</p>
+        <div class="statgroups cols-3" style="margin-top:6px">
+          <div class="statgroup">
+            <div class="gh">Cadence</div>
+            <div class="kv"><span class="k">turns / session</span><span class="v">2.3</span></div>
+            <div class="kv"><span class="k">tools / session</span><span class="v">17.9</span></div>
+          </div>
+          <div class="statgroup">
+            <div class="gh">Delivery</div>
+            <div class="kv"><span class="k">lines / session</span><span class="v">43</span></div>
+            <div class="kv"><span class="k">lines / hour</span><span class="v">292</span></div>
+            <div class="kv"><span class="k">churn (del/add)</span><span class="v">0.21</span></div>
+          </div>
+          <div class="statgroup">
+            <div class="gh">Cost spread</div>
+            <div class="kv"><span class="k">median $/session</span><span class="v">$0.00</span></div>
+            <div class="kv"><span class="k">p90 $/session</span><span class="v">$1.61</span></div>
+            <div class="kv"><span class="k">max $/session</span><span class="v">$19.75</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:16px">
+      <!-- 3-col, uneven / empty -->
+      <div class="card rv">
+        <h3>Uneven &amp; sparse columns</h3>
+        <p class="demo">dividers stay full-height · zeros read muted</p>
+        <div class="statgroups cols-3" style="margin-top:6px">
+          <div class="statgroup">
+            <div class="gh">Tool calls</div>
+            <div class="kv"><span class="k">tool calls</span><span class="v">860</span></div>
+            <div class="kv"><span class="k">tool errors</span><span class="v">25</span></div>
+            <div class="kv"><span class="k">error rate</span><span class="v">2.9<span class="u">%</span></span></div>
+          </div>
+          <div class="statgroup">
+            <div class="gh">Context</div>
+            <div class="kv muted"><span class="k">compactions</span><span class="v">0</span></div>
+          </div>
+          <div class="statgroup">
+            <div class="gh">Ecosystem</div>
+            <div class="kv muted"><span class="k">subagent types</span><span class="v">0</span></div>
+            <div class="kv muted"><span class="k">skills used</span><span class="v">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2-col, plain variant -->
+      <div class="card rv">
+        <h3>Two columns · <span class="mono" style="text-transform:none;color:var(--ink-faint)">.plain</span> (no row rules)</h3>
+        <p class="demo">airier option — lean on spacing, not hairlines</p>
+        <div class="statgroups cols-2 plain" style="margin-top:6px">
+          <div class="statgroup">
+            <div class="gh">Rate limits</div>
+            <div class="kv"><span class="k">5h window</span><span class="v">64<span class="u">%</span></span></div>
+            <div class="kv"><span class="k">7d window</span><span class="v">31<span class="u">%</span></span></div>
+            <div class="kv"><span class="k">headroom</span><span class="v">$710.14</span></div>
+          </div>
+          <div class="statgroup">
+            <div class="gh">Sessions</div>
+            <div class="kv"><span class="k">total</span><span class="v">142</span></div>
+            <div class="kv"><span class="k">median / day</span><span class="v">6</span></div>
+            <div class="kv"><span class="k">longest</span><span class="v">3.4<span class="u">h</span></span></div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -555,6 +955,49 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:40px}
         <div class="note warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg><div class="txt"><b>Spend up 18%.</b> A single project drove most of the increase. Filter by project to see the breakdown.</div></div>
         <div class="note ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 6 9 17l-5-5"/></svg><div class="txt"><b>Cache is working.</b> 99% hit rate means you're not paying twice for the same context.</div></div>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ SECTION FLOATING SIDEBAR ============ -->
+  <section class="sec" id="secnav">
+    <div class="sec-h"><h2>Section floating sidebar <span class="badge-new" style="font-size:11px">new</span></h2><span class="n mono">navigate · reorder · hide</span></div>
+    <p class="lede">A persistent rail pinned to the edge of the report. Collapsed it reads as a stack of ticks — one per section, the current one in <b style="color:var(--clay)">clay</b>. On hover it opens into the “go to section” menu, where each row carries a <b>drag handle</b> to re-order and an <b>eye</b> to hide the section. In production it lives <code class="mono" style="font-size:11px">position:fixed</code> against the right edge; here it's placed inside a demo stage so you can see both states.</p>
+    <div class="grid g2" style="align-items:start">
+
+      <!-- Collapsed → hover to open -->
+      <div class="card rv" style="overflow:visible">
+        <h3>Collapsed → hover to open</h3>
+        <p class="demo">hover the rail on the right — ticks morph into the menu</p>
+        <div class="secnav-stage">
+          <div class="ghost"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="secnav" tabindex="0">
+            <div class="secnav-rail" aria-label="Open section menu" title="Sections">
+              <div class="secnav-ticks"></div>
+            </div>
+            <div class="secnav-panel" role="menu" aria-label="Go to section">
+              <a class="secnav-top" href="#secnav" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19V5M6 11l6-6 6 6"/></svg>Top</a>
+              <div class="secnav-items"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expanded — reorder & hide -->
+      <div class="card rv" style="overflow:visible">
+        <h3>Expanded — reorder &amp; hide</h3>
+        <p class="demo">drag a row by its handle · click the eye to hide</p>
+        <div class="secnav-stage">
+          <div class="ghost"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="secnav open" tabindex="0">
+            <div class="secnav-rail" aria-hidden="true"><div class="secnav-ticks"></div></div>
+            <div class="secnav-panel" role="menu" aria-label="Go to section">
+              <a class="secnav-top" href="#secnav" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19V5M6 11l6-6 6 6"/></svg>Top</a>
+              <div class="secnav-items"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -784,6 +1227,85 @@ function applyTheme(t){root.setAttribute('data-theme',t);thI.innerHTML=t==='dark
 thBtn.addEventListener('click',()=>applyTheme(root.getAttribute('data-theme')==='dark'?'light':'dark'));
 const saved=localStorage.getItem('ds-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
 root.setAttribute('data-theme',saved);thI.innerHTML=saved==='dark'?sun:moon;
+
+/* ---------- section header: toggle + filter interactions ---------- */
+(function(){
+  document.querySelectorAll('.shead .seg').forEach(seg=>{
+    seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+      seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+  });
+  document.querySelectorAll('.shead-filters').forEach(group=>{
+    const single=group.hasAttribute('data-single');
+    const allBtn=group.querySelector('[data-all]');
+    group.addEventListener('click',e=>{
+      const p=e.target.closest('.fpill');if(!p||p.classList.contains('ghost'))return;
+      if(single){group.querySelectorAll('.fpill').forEach(x=>x.classList.remove('on'));p.classList.add('on');return;}
+      if(p===allBtn){group.querySelectorAll('.fpill').forEach(x=>x.classList.remove('off'));allBtn.classList.add('on');return;}
+      p.classList.toggle('off');
+      if(allBtn){const anyOff=[...group.querySelectorAll('.fpill:not([data-all])')].some(x=>x.classList.contains('off'));
+        allBtn.classList.toggle('on',!anyOff);}
+    });
+  });
+})();
+
+/* ---------- metric / ratio card fills ---------- */
+(function(){
+  const sparks=[...document.querySelectorAll('.ratio-spark[data-h]')];
+  sparks.forEach(s=>{s.innerHTML=s.dataset.h.split(',').map(h=>'<i style="height:'+(REDUCED?h:2)+'%"></i>').join('');});
+  const meters=[...document.querySelectorAll('.ratio-meter>i[data-w]')];
+  if(REDUCED){meters.forEach(i=>i.style.width=i.dataset.w);return;}
+  setTimeout(()=>{
+    sparks.forEach(s=>{const bars=s.querySelectorAll('i');s.dataset.h.split(',').forEach((h,i)=>bars[i].style.height=h+'%');});
+    meters.forEach(i=>i.style.width=i.dataset.w);
+  },80);
+})();
+
+/* ---------- section floating sidebar ---------- */
+(function(){
+  const SECTIONS=['Spend over time','Breakdown','Token economics','Efficiency','When you work','Sessions','By project','Models'];
+  const GRIP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>';
+  const EYES='<svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>'+
+    '<svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l18 18M10.6 10.7a3 3 0 0 0 4.2 4.2M9.4 5.2A9.6 9.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4M6.2 6.2A17 17 0 0 0 2 12s3.5 7 10 7a9.3 9.3 0 0 0 3-.5"/></svg>';
+  function buildItem(label){
+    const it=el('div','secnav-item');it.setAttribute('draggable','true');
+    it.innerHTML='<span class="secnav-grip" aria-hidden="true">'+GRIP+'</span>'+
+      '<span class="secnav-label">'+label+'</span>'+
+      '<button class="secnav-eye" aria-label="Hide '+label+'" aria-pressed="false">'+EYES+'</button>';
+    return it;
+  }
+  function syncRail(nav){
+    const ticks=nav.querySelector('.secnav-ticks');if(!ticks)return;ticks.innerHTML='';
+    nav.querySelectorAll('.secnav-item').forEach((it,i)=>{
+      ticks.appendChild(el('div','tick'+(it.classList.contains('hidden')?' off':(i===0?' on':''))));
+    });
+  }
+  function getAfter(list,y){
+    let best=null,bestOff=-Infinity;
+    list.querySelectorAll('.secnav-item:not(.dragging)').forEach(c=>{
+      const b=c.getBoundingClientRect(),off=y-b.top-b.height/2;
+      if(off<0&&off>bestOff){bestOff=off;best=c;}
+    });
+    return best;
+  }
+  document.querySelectorAll('.secnav').forEach(nav=>{
+    const list=nav.querySelector('.secnav-items');
+    SECTIONS.forEach(l=>list.appendChild(buildItem(l)));
+    if(nav.classList.contains('open')){ // pre-hide one to show the state
+      const m=list.querySelectorAll('.secnav-item')[7];
+      m.classList.add('hidden');m.querySelector('.secnav-eye').setAttribute('aria-pressed','true');
+    }
+    let dragEl=null;
+    list.addEventListener('dragstart',e=>{const it=e.target.closest('.secnav-item');if(!it)return;
+      dragEl=it;e.dataTransfer.effectAllowed='move';requestAnimationFrame(()=>it.classList.add('dragging'));});
+    list.addEventListener('dragend',()=>{if(dragEl){dragEl.classList.remove('dragging');dragEl=null;}syncRail(nav);});
+    list.addEventListener('dragover',e=>{e.preventDefault();if(!dragEl)return;
+      const after=getAfter(list,e.clientY);if(after==null)list.appendChild(dragEl);else list.insertBefore(dragEl,after);});
+    list.addEventListener('click',e=>{const b=e.target.closest('.secnav-eye');if(!b)return;
+      const it=b.closest('.secnav-item'),h=it.classList.toggle('hidden');
+      b.setAttribute('aria-pressed',h?'true':'false');syncRail(nav);});
+    syncRail(nav);
+  });
+})();
 
 /* ---------- reveal on scroll ---------- */
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.12});
