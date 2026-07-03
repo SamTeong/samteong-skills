@@ -1,13 +1,12 @@
 <header><div class='wrap'>
-<div class='kicker prompt'>$ claude-insights<span class='cur'></span></div>
-<h1>Claude Code Insights</h1>
-<div class='sub'>Local session cost &amp; token usage across all recorded runs</div>
-<div class='spec'><div class='cell'><span class='k'>Generated</span><span class='v'>{{GENERATED}}</span></div><div class='cell'><span class='k'>Source</span><span class='v'>~/.agents/.show-insights/state/stats.csv</span></div><div class='cell'><span class='k'>Scope</span><span class='v'>local only</span></div></div>
+<div class='eyebrow-hero'>Claude Code Insights</div>
+<div class='term' id='term'><span class='ln'><span class='cmd'>&#10095; <b>claude</b> /show-insights</span></span><span class='ln'><span class='mut'>reading ~/.agents/.show-insights/state/stats.csv &hellip;</span></span><span class='ln'><span class='ok'>&#10003;</span> <span class='mut'>generated {{GENERATED}} &middot; scope local only &mdash; nothing leaves this machine</span><span class='cur'></span></span></div>
+<div class='hero-grid'><div class='flag'><h1 class='hl' id='top'>Know exactly what Claude&nbsp;Code costs you &mdash; down to the session, on your own machine.</h1><p class='lead'>Read straight from the session logs on this machine: every dollar, token, and working hour, itemized below. Nothing leaves your disk.</p></div><aside class='flagcard'><span class='numlbl'>Total spend &middot; <span id='flagRange'>all time</span></span><span class='flagnum' id='flagNum'>&mdash;</span><div class='cap'><span class='delta up' id='flagDelta'>&mdash;</span><span id='flagDeltaNote'></span><span id='flagLast'></span></div><div class='flagstats'><div><span class='v' id='flagSessions'>&mdash;</span><span class='l'>sessions</span></div><div><span class='v' id='flagTokens'>&mdash;</span><span class='l'>tokens</span></div><div><span class='v' id='flagModels'>&mdash;</span><span class='l'>models</span></div></div></aside></div>
 </div></header>
 <div class='wrap'>
 <div class='range-bar' id='rangeBar'></div>
 <div id='kpi'></div>
-<div class='eyebrow'>Spend over time</div>
-<div class='card'><h3>Cumulative spend + projection</h3><div id='sec-cumulative'></div></div>
-<div class='grid2'><div class='card'><h3>Run-rate</h3><div id='sec-runrate'></div></div>
-<div class='card'><h3>Daily spend calendar</h3><div id='sec-cal'></div></div></div>
+<div class='eyebrow' id='sec-spend-over-time'>Spend over time<span class='n'>cumulative to date, projected forward</span></div>
+<div class='card rv'><h3>Cumulative spend + projection</h3><div id='sec-cumulative'></div></div>
+<div class='grid2'><div class='card rv'><h3>Run-rate</h3><div id='sec-runrate'></div></div>
+<div class='card rv'><h3>Daily spend calendar</h3><div id='sec-cal'></div></div></div>
