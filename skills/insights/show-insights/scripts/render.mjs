@@ -12,7 +12,6 @@ import path from "node:path";
 import os from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { JUMP_JS, jumpNavHtml } from "./report_chrome.mjs";
 
 const HOME = os.homedir();
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -52,16 +51,6 @@ function htmlEscape(s) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#x27;");
-}
-
-function htmlUnescape(s) {
-  return String(s)
-    .replace(/&#x27;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&gt;/g, ">")
-    .replace(/&lt;/g, "<")
-    .replace(/&amp;/g, "&");
 }
 
 function pad2(n) {
@@ -193,8 +182,8 @@ function render_hero() {
   return _fill(_source("hero.html"), { GENERATED: esc(fmtLocal(new Date())) });
 }
 
-const BREAKDOWN_HTML = `<div class='eyebrow' id='sec-breakdown'>Breakdown<span class='n'>cost by day or month, filterable by model</span></div>
-<div class='ctl-row'><div id='model-filter' class='legend'></div><div class='toggle'><button id='btn-day' class='active' onclick="show('day')">By Day</button><button id='btn-month' onclick="show('month')">By Month</button></div></div>
+const BREAKDOWN_HTML = `<header class='shead' id='sec-breakdown'><div class='shead-title'><h2>Breakdown</h2><span class='sub'>cost by day or month, filterable by model</span></div></header>
+<div class='ctl-row'><div id='model-filter' class='legend'></div><div class='toggle'><button id='btn-day' class='active' onclick="show('day')">by day</button><button id='btn-month' onclick="show('month')">by month</button></div></div>
 <section id='day-view'><div class='card rv'><h3>Cost by day</h3><div id='day-chart'></div></div><div class='scroll' id='day-table'></div></section>
 <section id='month-view' style='display:none'><div class='card rv'><h3>Cost by month</h3><div id='month-chart'></div></div><div class='scroll' id='month-table'></div></section>`;
 
@@ -202,8 +191,8 @@ function render_breakdown() {
   return BREAKDOWN_HTML;
 }
 
-const TOKEN_ECONOMICS_HTML = `<div class='eyebrow' id='sec-token-economics'>Token economics<span class='n'>where the tokens go and what the cache saves</span></div>
-<div class='ctl-row'><div id='tok-legend' class='legend'></div><div class='toggle'><button id='tbtn-day' class='active' onclick="showTok('day')">By Day</button><button id='tbtn-month' onclick="showTok('month')">By Month</button></div></div>
+const TOKEN_ECONOMICS_HTML = `<header class='shead' id='sec-token-economics'><div class='shead-title'><h2>Token economics</h2><span class='sub'>where the tokens go and what the cache saves</span></div></header>
+<div class='ctl-row'><div id='tok-legend' class='legend'></div><div class='toggle'><button id='tbtn-day' class='active' onclick="showTok('day')">by day</button><button id='tbtn-month' onclick="showTok('month')">by month</button></div></div>
 <div id='tok-day'><div class='card rv'><h3>Token composition by day</h3><div id='tok-day-bars'></div></div></div>
 <div id='tok-month' style='display:none'><div class='card rv'><h3>Token composition by month</h3><div id='tok-month-bars'></div></div></div>
 <div class='grid12'><div class='card rv'><h3>Token mix</h3><div id='tok-mix'></div></div>
@@ -213,7 +202,7 @@ function render_token_economics() {
   return TOKEN_ECONOMICS_HTML;
 }
 
-const EFFICIENCY_HTML = `<div class='eyebrow' id='sec-efficiency'>Efficiency<span class='n'>what a session costs in tokens, time, and lines</span></div>
+const EFFICIENCY_HTML = `<header class='shead' id='sec-efficiency'><div class='shead-title'><h2>Efficiency</h2><span class='sub'>what a session costs in tokens, time, and lines</span></div></header>
 <h3 class='subhead'>Per-model efficiency</h3>
 <div id='sec-eff-models' class='rv'></div>
 <div class='card rv'><div id='sec-throughput'></div></div>`;
@@ -222,21 +211,21 @@ function render_efficiency() {
   return EFFICIENCY_HTML;
 }
 
-const RATE_LIMITS_HTML = `<div class='eyebrow' id='sec-rate-limit-utilization-5h-7d'>Rate-limit utilization · 5h &amp; 7d<span class='n'>how close you run to the usage caps</span></div>
+const RATE_LIMITS_HTML = `<header class='shead' id='sec-rate-limit-utilization-5h-7d'><div class='shead-title'><h2>Rate-limit utilization · 5h &amp; 7d</h2><span class='sub'>how close you run to the usage caps</span></div></header>
 <div class='card rv'><h3>5h / 7d usage-limit efficiency</h3><div id='sec-ratelimits'></div></div>`;
 
 function render_rate_limits() {
   return RATE_LIMITS_HTML;
 }
 
-const WHEN_YOU_WORK_HTML = `<div class='eyebrow' id='sec-when-you-work'>When you work<span class='n'>spend by weekday and hour</span></div>
+const WHEN_YOU_WORK_HTML = `<header class='shead' id='sec-when-you-work'><div class='shead-title'><h2>When you work</h2><span class='sub'>spend by weekday and hour</span></div></header>
 <div class='card flush2 rv'><h3>Spend by day-of-week × hour</h3><div id='sec-dayhour'></div></div>`;
 
 function render_when_you_work() {
   return WHEN_YOU_WORK_HTML;
 }
 
-const SESSIONS_HTML = `<div class='eyebrow' id='sec-sessions'>Sessions<span class='n'>the runs that carry the bill</span></div>
+const SESSIONS_HTML = `<header class='shead' id='sec-sessions'><div class='shead-title'><h2>Sessions</h2><span class='sub'>the runs that carry the bill</span></div></header>
 <div class='grid2'><div class='card rv'><h3>Cost vs tokens (per session)</h3><div id='sec-scatter'></div></div>
 <div class='card rv'><h3 id='sec-pareto-title'></h3><div id='sec-pareto'></div></div></div>
 <div class='scroll' id='sec-toptable'></div>`;
@@ -245,7 +234,7 @@ function render_sessions() {
   return SESSIONS_HTML;
 }
 
-const USAGE_PATTERNS_HTML = `<div class='eyebrow' id='sec-usage-patterns'>Usage patterns<span class='n'>tools, subagents, and skills in play</span></div>
+const USAGE_PATTERNS_HTML = `<header class='shead' id='sec-usage-patterns'><div class='shead-title'><h2>Usage patterns</h2><span class='sub'>tools, subagents, and skills in play</span></div></header>
 <div class='card rv'><div id='sec-usage-stats'></div></div>
 <div class='grid2'><div class='card rv'><h3>Tool mix (top 12)</h3><div id='sec-tools'></div></div>
 <div class='card rv'><h3>Subagent types</h3><div id='sec-agents'></div></div></div>
@@ -255,7 +244,7 @@ function render_usage_patterns() {
   return USAGE_PATTERNS_HTML;
 }
 
-const PROJECTS_HTML = `<div class='eyebrow' id='sec-by-project'>By project<span class='n'>which repos spend the budget</span></div>
+const PROJECTS_HTML = `<header class='shead' id='sec-by-project'><div class='shead-title'><h2>By project</h2><span class='sub'>which repos spend the budget</span></div></header>
 <div class='grid2'><div class='card rv'><h3>Cost by project</h3><div id='sec-proj-cost'></div></div>
 <div class='card rv'><h3>Sessions by project</h3><div id='sec-proj-sess'></div></div></div>`;
 
@@ -263,7 +252,7 @@ function render_projects() {
   return PROJECTS_HTML;
 }
 
-const MODELS_HTML = `<div class='eyebrow' id='sec-models'>Models<span class='n'>cost share and adoption over time</span></div>
+const MODELS_HTML = `<header class='shead' id='sec-models'><div class='shead-title'><h2>Models</h2><span class='sub'>cost share and adoption over time</span></div></header>
 <div class='card rv'><h3>Cost share by model (area ∝ cost)</h3><div id='sec-treemap'></div></div>
 <div class='grid2'><div class='card rv'><h3>Sessions by model</h3><div id='sec-model-sessions'></div></div>
 <div class='card rv'><h3>Cost by model</h3><div id='sec-model-cost'></div></div></div>
@@ -273,7 +262,7 @@ function render_models() {
   return MODELS_HTML;
 }
 
-const ROADMAP_HTML = `<div class='eyebrow' id='sec-insights-roadmap-what-could-come-next'>Insights roadmap<span class='n'>what could come next</span></div>
+const ROADMAP_HTML = `<header class='shead' id='sec-insights-roadmap-what-could-come-next'><div class='shead-title'><h2>Insights roadmap</h2><span class='sub'>what could come next</span></div></header>
 {{ROADMAP_BODY}}`;
 
 function render_roadmap() {
@@ -286,6 +275,87 @@ function render_footer() {
   return FOOTER_HTML;
 }
 
+// Floating section sidebar (replaces the old "Go to section" fan-out). The shell
+// is static; the menu items, ticks, order and hidden-state are all derived at
+// runtime from the .rsec wrappers by SIDEBAR_JS (see below), which also persists
+// order + visibility to localStorage. Standardized on the design-system
+// "Section floating sidebar".
+const SIDEBAR_HTML = `<nav class='secnav' id='secnav' aria-label='Sections'>
+<div class='secnav-rail' role='button' tabindex='0' aria-label='Open section menu' title='Sections'><div class='secnav-ticks'></div></div>
+<div class='secnav-panel' role='menu' aria-label='Go to section'>
+<a class='secnav-top' href='#top' role='menuitem'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8'><path d='M12 19V5M6 11l6-6 6 6'/></svg>Top</a>
+<div class='secnav-items'></div>
+</div></nav>`;
+
+function render_sidebar() {
+  return SIDEBAR_HTML;
+}
+
+// Runtime for the floating sidebar. Reads persisted order/visibility, applies it
+// to the .rsec sections, builds the draggable + hideable menu, and keeps the rail
+// ticks + localStorage in sync on every reorder / hide / scroll.
+const SIDEBAR_JS = `
+(function(){
+ var KEY='insights-secnav-v1';
+ var host=document.getElementById('report-sections'),nav=document.getElementById('secnav');
+ if(!host||!nav)return;
+ var itemsBox=nav.querySelector('.secnav-items'),ticksBox=nav.querySelector('.secnav-ticks'),rail=nav.querySelector('.secnav-rail');
+ var GRIP='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>';
+ var EYES='<svg class="eye-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3l18 18M10.6 10.7a3 3 0 0 0 4.2 4.2M9.4 5.2A9.6 9.6 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4M6.2 6.2A17 17 0 0 0 2 12s3.5 7 10 7a9.3 9.3 0 0 0 3-.5"/></svg>';
+ function secs(){return Array.prototype.slice.call(host.querySelectorAll('.rsec'));}
+ function secById(id){var r=null;secs().forEach(function(s){if(s.dataset.sec===id)r=s;});return r;}
+ function labelFor(s){var h=s.querySelector('.shead-title h2');return h?h.textContent.trim():(s.dataset.sec||'');}
+ function top(s){return s.getBoundingClientRect().top+(window.scrollY||window.pageYOffset);}
+ function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
+ function saveState(){var order=[],hidden=[];secs().forEach(function(s){order.push(s.dataset.sec);if(s.classList.contains('is-hidden'))hidden.push(s.dataset.sec);});try{localStorage.setItem(KEY,JSON.stringify({order:order,hidden:hidden}));}catch(e){}}
+ function revealIn(s){s.classList.remove('is-hidden');s.querySelectorAll('.rv').forEach(function(e){e.classList.add('in');e.style.opacity='';e.style.transform='';});}
+ // Reordering the DOM leaves GSAP's scroll-reveal triggers pointing at stale
+ // positions, so cards that scrolled into view can stay stuck at opacity:0. After
+ // a reorder we drop those triggers and force every card visible.
+ function revealAll(){if(window.ScrollTrigger){try{window.ScrollTrigger.getAll().forEach(function(t){t.kill();});}catch(e){}}host.querySelectorAll('.rv').forEach(function(e){e.classList.add('in');e.style.opacity='1';e.style.transform='none';});}
+ // apply persisted order + hidden state to the real sections
+ var st=loadState();
+ if(st.order&&st.order.length)st.order.forEach(function(id){var s=secById(id);if(s)host.appendChild(s);});
+ if(st.hidden&&st.hidden.length)st.hidden.forEach(function(id){var s=secById(id);if(s)s.classList.add('is-hidden');});
+ function buildTicks(){ticksBox.innerHTML='';itemsBox.querySelectorAll('.secnav-item').forEach(function(it){var t=document.createElement('div');t.className='tick'+(it.classList.contains('hidden')?' off':'');t.dataset.sec=it.dataset.sec;ticksBox.appendChild(t);});highlight();}
+ function highlight(){var vis=secs().filter(function(s){return !s.classList.contains('is-hidden');});if(!vis.length){ticksBox.querySelectorAll('.tick').forEach(function(t){t.classList.remove('on');});return;}var y=(window.scrollY||window.pageYOffset)+140,cur=vis[0];vis.forEach(function(s){if(top(s)<=y)cur=s;});var id=cur.dataset.sec;ticksBox.querySelectorAll('.tick').forEach(function(t){t.classList.toggle('on',!t.classList.contains('off')&&t.dataset.sec===id);});}
+ function buildItems(){itemsBox.innerHTML='';secs().forEach(function(s){var id=s.dataset.sec,hidden=s.classList.contains('is-hidden');var it=document.createElement('div');it.className='secnav-item'+(hidden?' hidden':'');it.setAttribute('draggable','true');it.dataset.sec=id;it.innerHTML='<span class="secnav-grip" aria-hidden="true">'+GRIP+'</span><a class="secnav-label" href="#'+id+'" draggable="false">'+labelFor(s)+'</a><button class="secnav-eye" type="button" aria-label="Toggle section" aria-pressed="'+(hidden?'true':'false')+'">'+EYES+'</button>';itemsBox.appendChild(it);});buildTicks();}
+ var dragEl=null;
+ function afterEl(y){var best=null,bestOff=-Infinity;itemsBox.querySelectorAll('.secnav-item:not(.dragging)').forEach(function(c){var b=c.getBoundingClientRect(),off=y-b.top-b.height/2;if(off<0&&off>bestOff){bestOff=off;best=c;}});return best;}
+ itemsBox.addEventListener('dragstart',function(e){var it=e.target.closest('.secnav-item');if(!it)return;dragEl=it;e.dataTransfer.effectAllowed='move';requestAnimationFrame(function(){it.classList.add('dragging');});});
+ itemsBox.addEventListener('dragover',function(e){e.preventDefault();if(!dragEl)return;var a=afterEl(e.clientY);if(a==null)itemsBox.appendChild(dragEl);else itemsBox.insertBefore(dragEl,a);});
+ itemsBox.addEventListener('dragend',function(){if(dragEl){dragEl.classList.remove('dragging');dragEl=null;}itemsBox.querySelectorAll('.secnav-item').forEach(function(it){var s=secById(it.dataset.sec);if(s)host.appendChild(s);});saveState();buildTicks();revealAll();window.scrollTo({top:0,behavior:'smooth'});});
+ itemsBox.addEventListener('click',function(e){var eye=e.target.closest('.secnav-eye');if(eye){e.preventDefault();var it=eye.closest('.secnav-item'),s=secById(it.dataset.sec),hid=it.classList.toggle('hidden');if(s){if(hid)s.classList.add('is-hidden');else revealIn(s);}eye.setAttribute('aria-pressed',hid?'true':'false');saveState();buildTicks();return;}if(e.target.closest('.secnav-label'))setOpen(false);});
+ function setOpen(o){nav.classList.toggle('open',o);requestAnimationFrame(syncOpen);}
+ rail.addEventListener('click',function(){setOpen(!nav.classList.contains('open'));});
+ rail.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();setOpen(!nav.classList.contains('open'));}});
+ nav.querySelector('.secnav-top').addEventListener('click',function(){setOpen(false);});
+ document.addEventListener('keydown',function(e){if(e.key==='Escape')setOpen(false);});
+ document.addEventListener('click',function(e){if(!nav.contains(e.target))setOpen(false);});
+ buildItems();
+ window.addEventListener('scroll',highlight,{passive:true});
+ window.addEventListener('resize',highlight);
+ // --- GSAP row-stagger enhancement (progressive; the CSS block-fade is the fallback) ---
+ var _reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ var gsapReady=false,rowTl=null,rowOpen=false;
+ function _rows(){return [nav.querySelector('.secnav-top')].concat(Array.prototype.slice.call(itemsBox.querySelectorAll('.secnav-item')));}
+ function syncOpen(){if(!gsapReady||!rowTl)return;var open=nav.classList.contains('open')||nav.matches(':hover')||nav.matches(':focus-within');if(open===rowOpen)return;rowOpen=open;if(open){rowTl.timeScale(1);rowTl.play();}else{rowTl.timeScale(1.9);rowTl.reverse();}}
+ function initGsap(){
+   if(gsapReady||_reduced||!window.gsap)return false;
+   gsapReady=true;nav.classList.add('secnav-gsap');
+   var rs=_rows();
+   gsap.set(itemsBox,{opacity:1});
+   gsap.set(rs,{autoAlpha:0,x:14});
+   rowTl=gsap.timeline({paused:true});
+   rowTl.to(rs,{autoAlpha:1,x:0,duration:.34,ease:'power3.out',stagger:0.026},0.06);
+   ['mouseenter','mouseleave','focusin','focusout'].forEach(function(ev){nav.addEventListener(ev,function(){requestAnimationFrame(syncOpen);});});
+   return true;
+ }
+ // gsap is CDN-loaded after this inline script, so retry until it's ready (or give up)
+ if(!initGsap())addEventListener('load',function(){if(!initGsap()){var n=0,iv=setInterval(function(){if(initGsap()||++n>12)clearInterval(iv);},180);}});
+})();
+`;
+
 function render_scripts(sessions) {
   const secs = _build_sessions_json(sessions);
   // Escape < so a crafted field (cwd, tool/skill name from a transcript) can't
@@ -293,7 +363,7 @@ function render_scripts(sessions) {
   const sessions_json = JSON.stringify(secs).replace(/</g, "\\u003c");
   return (
     "<script>\nvar SESSIONS=" + sessions_json + ";\n" + _source("app.js") +
-    "\n" + JUMP_JS + "</script>"
+    "\n" + SIDEBAR_JS + "</script>"
   );
 }
 
@@ -303,20 +373,10 @@ function render_motion() {
   return _source("motion.html");
 }
 
-// Build the fixed "Go to section" nav from the eyebrows already present in the
-// composed document (each carries its anchor id statically).
-function _jump_nav(doc) {
-  const items = [["top", "↑ Top"]];
-  const re = /<div class='eyebrow' id='([^']+)'>([\s\S]*?)<span class='n'>/g;
-  let m;
-  while ((m = re.exec(doc))) items.push([m[1], htmlUnescape(m[2])]);
-  return jumpNavHtml(items);
-}
-
 // ---- render ----
 
 export function render(c) {
-  const doc = _fill(_source("base.html"), {
+  return _fill(_source("base.html"), {
     STYLE: render_style(),
     HERO: render_hero(),
     BREAKDOWN: render_breakdown(),
@@ -332,7 +392,6 @@ export function render(c) {
     FOOTER: render_footer(),
     SCRIPTS: render_scripts(c.sessions),
     MOTION: render_motion(),
+    SIDEBAR: render_sidebar(),
   });
-  // Second pass: the nav is derived from the section markup composed above.
-  return _fill(doc, { JUMP_NAV: _jump_nav(doc) });
 }

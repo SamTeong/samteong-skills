@@ -17,6 +17,7 @@
   --sans:var(--body);
   /* spacing scale */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:22px; --s6:32px; --s7:48px;
+  --ctl-h:34px; /* shared height for header filter pills + segmented toggle */
   /* radius scale */
   --r-sm:7px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
 }
@@ -72,8 +73,11 @@ header{background:transparent;color:var(--ink);padding:36px 0 8px;border-bottom:
 .flagstats>div:last-child{border-right:none;padding-right:0}
 .flagstats .v{display:block;font-family:var(--mono);font-weight:700;font-size:20px;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums}
 .flagstats .l{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px}
-.eyebrow{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;font-family:var(--disp);font-size:clamp(20px,2.6vw,26px);letter-spacing:-.02em;text-transform:none;color:var(--ink);font-weight:600;margin:54px 0 16px;scroll-margin-top:74px}
-.eyebrow .n{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.02em;font-weight:400}
+/* section header — standardized on the design-system "Section header" (.shead) */
+.shead{--ctl-h:34px;margin:16px 0 16px;scroll-margin-top:36px}
+.shead-title{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.shead-title h2{margin:0;font-family:var(--disp);font-weight:600;font-size:clamp(20px,2.6vw,27px);letter-spacing:-.02em;color:var(--ink)}
+.shead-title .sub{font-family:var(--mono);font-size:12px;color:var(--ink-faint);letter-spacing:.02em}
 /* flagcard sparkline (replaces the delta caption) */
 .hero-spark{margin-top:22px}
 .hero-spark .spark{height:38px;width:200px;display:block}
@@ -81,15 +85,20 @@ header{background:transparent;color:var(--ink);padding:36px 0 8px;border-bottom:
 /* stacked notes (run-rate) — even vertical rhythm */
 .notes{display:flex;flex-direction:column;gap:14px}
 .notes .note+.note{margin-top:0}
-/* efficiency ratios — bold rate readouts (figure + clay slash-unit), split by a hairline */
-.eff-ratios{display:flex;flex-direction:column;margin-top:2px}
-.er{padding:18px 0}
-.er:first-child{padding-top:6px}
-.er:last-child{padding-bottom:2px}
-.er+.er{border-top:1px solid var(--line-soft)}
-.er-num{font-family:var(--mono);font-weight:700;font-size:clamp(27px,3vw,33px);line-height:1;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.03em}
-.er-unit{font-size:15px;font-weight:600;color:var(--ac);letter-spacing:0;margin-left:2px}
-.er-cap{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-top:9px;letter-spacing:.02em}
+/* metric / ratio card — standardized on the design-system "Metric / ratio card"
+   (numbers first: eyebrow · hero figure with clay /unit · context · coverage meter) */
+.ratiocard .ratio{padding:18px 0}
+.ratiocard .ratio:first-of-type{padding-top:20px}
+.ratiocard .ratio:last-of-type{padding-bottom:2px}
+.ratiocard .ratio + .ratio{border-top:1px solid var(--line-soft)}
+.ratio-eyebrow{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+.ratio-hero{display:flex;align-items:baseline;gap:10px;margin:9px 0 7px}
+.ratio-val{font-family:var(--mono);font-weight:700;font-size:clamp(30px,4.2vw,40px);line-height:.95;letter-spacing:-.03em;color:var(--ink);font-variant-numeric:tabular-nums}
+.ratio-val .unit{color:var(--clay);font-size:.44em;font-weight:600;letter-spacing:0;margin-left:2px}
+.ratio-ctx{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);letter-spacing:.01em}
+.ratio-ctx b{color:var(--ink-soft);font-weight:600}
+.ratio-meter{height:5px;border-radius:6px;background:var(--line-soft);overflow:hidden;margin-top:11px;max-width:230px}
+.ratio-meter>i{display:block;height:100%;width:0;border-radius:6px;background:var(--clay);transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
 .supp-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:12px;margin:16px 0 4px}
 .supp{display:flex;flex-direction:column;gap:1px;padding:15px 17px;min-width:0;background:var(--card);border:1px solid var(--card-brd);border-radius:var(--r-xl);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--card-shadow)}
 .supp .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);order:-1;margin-bottom:10px}
@@ -127,15 +136,28 @@ header{background:transparent;color:var(--ink);padding:36px 0 8px;border-bottom:
 .ctl-row>.filter-bar,.ctl-row>.legend{margin:0}
 .ctl-row>.legend{flex:1 1 0;min-width:0}
 .ctl-row>.toggle{flex:none;margin:0 0 0 auto}
-.filter-lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+.filter-lbl{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
 .legend{display:flex;flex-wrap:wrap;gap:8px}
-.lg-item{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);background:var(--card-2);border:1px solid var(--line);border-radius:999px;padding:4px 12px;cursor:pointer;transition:transform .15s,border-color .15s}
-.lg-item:hover{border-color:var(--ink-faint);transform:translateY(-1px)}
-.lg-item.off{opacity:.45;text-decoration:line-through}
-.lg-swatch{width:10px;height:10px;border-radius:3px;flex:none}
-.lg-all{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 12px;cursor:pointer;transition:transform .15s,border-color .15s}
-.lg-all:hover{border-color:var(--ink-faint);color:var(--ink);transform:translateY(-1px)}
-.lg-all.active{background:var(--ac);color:#fff;border-color:var(--ac);box-shadow:0 4px 12px -4px var(--ac)}
+/* filter pill — standardized on the design-system ".fpill" (range presets, model/token
+   filters, and the "all" reset all share it). The interactive versions are <button>s;
+   a static <span class='lg-item'> stays a light legend chip (see below). */
+.fpill,button.lg-item,.range-preset,.lg-all{height:var(--ctl-h);display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.02em;color:var(--ink-soft);
+  background:var(--card-2);border:1px solid var(--card-brd);border-radius:var(--r-pill);padding:0 15px;cursor:pointer;
+  box-shadow:var(--card-shadow);white-space:nowrap;
+  transition:color .18s,border-color .18s,background .18s,transform .18s,opacity .18s}
+.fpill:hover,button.lg-item:hover,.range-preset:hover,.lg-all:hover{color:var(--ink);transform:translateY(-1px)}
+.lg-swatch,.fdot{width:10px;height:10px;border-radius:3px;flex:none}
+/* active (clay-filled) — model/token pills use .off to dim; range presets + "all" use .active */
+.range-preset.active,.lg-all.active{color:#fff;background:var(--clay);border-color:transparent;box-shadow:0 4px 12px -4px var(--clay)}
+.range-preset.active .lg-swatch,.lg-all.active .lg-swatch{box-shadow:0 0 0 1.5px rgba(255,255,255,.7)}
+button.lg-item.off{opacity:.42}
+button.lg-item.off:hover{opacity:.7}
+/* the "all" reset reads as a ghost pill until it's the active state */
+.lg-all{background:transparent;box-shadow:none;letter-spacing:.08em}
+.lg-all:hover{border-color:var(--clay);color:var(--clay)}
+/* static (non-interactive) legend chip — e.g. the 5h/7d rate-limit key */
+span.lg-item{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
 .scroll{overflow-x:auto;border:1px solid var(--card-brd);border-radius:var(--r-xl);background:var(--card);margin-top:16px;padding:8px 22px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--card-shadow)}
 /* recent-sessions table (design-system: Table & roadmap > Recent sessions) */
 .tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin-top:4px}
@@ -155,10 +177,11 @@ tr.total td{font-weight:700;border-top:2px solid var(--line);font-family:var(--m
 .mono{font-family:var(--mono);font-size:12px}
 .tag{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:var(--r-sm);background:color-mix(in srgb,var(--clay) 14%,transparent);color:var(--clay-deep);white-space:nowrap}
 :root[data-theme="dark"] .tag{color:var(--clay)}
-.toggle{display:inline-flex;background:var(--card-2);border:1px solid var(--card-brd);border-radius:var(--r-pill);padding:3px;box-shadow:var(--card-shadow);margin:0 0 4px}
-.toggle button{font-family:var(--mono);background:none;border:none;color:var(--ink-soft);border-radius:var(--r-pill);padding:7px 14px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:color .2s}
+/* segmented toggle — standardized on the design-system ".seg" */
+.toggle{display:inline-flex;background:var(--card-2);border:1px solid var(--card-brd);border-radius:var(--r-pill);padding:3px;box-shadow:var(--card-shadow)}
+.toggle button{height:calc(var(--ctl-h) - 8px);display:inline-flex;align-items:center;font-family:var(--mono);background:none;border:none;color:var(--ink-soft);border-radius:var(--r-pill);padding:0 14px;font-size:11.5px;font-weight:600;letter-spacing:.04em;cursor:pointer;transition:color .2s}
 .toggle button:hover{color:var(--ink)}
-.toggle button.active{background:var(--ac);color:#fff;box-shadow:0 4px 12px -4px var(--ac)}
+.toggle button.active{background:var(--clay);color:#fff;box-shadow:0 4px 12px -4px var(--clay)}
 .chart{width:100%;height:auto;display:block}
 .chart text{font-family:var(--mono);font-size:11px;fill:var(--ink-faint)}
 .chart .axis{stroke:var(--line);stroke-width:1}
@@ -259,37 +282,70 @@ footer code{background:color-mix(in srgb,var(--paper-2) 70%,transparent);padding
 @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}}
 @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.cur{animation:none;opacity:.9}}
-.jump-nav{position:fixed;bottom:1.4rem;right:1.4rem;z-index:50;font-family:var(--mono)}
-.jump-btn{display:inline-flex;align-items:center;gap:7px;background:var(--card-2);color:var(--ink);border:1px solid color-mix(in srgb,var(--clay) 35%,var(--line));border-radius:999px;padding:.55rem 1.1rem;font-family:var(--mono);font-size:.78rem;font-weight:600;letter-spacing:.04em;cursor:pointer;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--card-shadow)}
-.jump-btn:hover{color:var(--clay);border-color:color-mix(in srgb,var(--clay) 55%,var(--line))}
-.jump-btn:focus-visible{outline:2px solid var(--clay);outline-offset:2px}
-.jump-btn .caret{font-size:.7rem;opacity:.85;transition:transform .18s}
-.jump-nav:hover .jump-btn .caret,.jump-nav.is-open .jump-btn .caret,.jump-nav:focus-within .jump-btn .caret{transform:rotate(180deg)}
-.jump-menu{position:absolute;right:0;bottom:calc(100% + 8px);min-width:240px;max-width:60vw;list-style:none;margin:0;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 44px -18px rgba(38,33,27,.4);opacity:0;transform:translateY(8px) scale(.98);pointer-events:none;transition:opacity .16s,transform .16s}
-.jump-nav:hover .jump-menu,.jump-nav.is-open .jump-menu,.jump-nav:focus-within .jump-menu{opacity:1;transform:none;pointer-events:auto}
-.jump-menu li{opacity:0;transform:translateY(6px);transition:opacity .14s,transform .14s}
-.jump-nav:hover .jump-menu li,.jump-nav.is-open .jump-menu li,.jump-nav:focus-within .jump-menu li{opacity:1;transform:none}
-.jump-menu li:nth-child(1){transition-delay:0ms}
-.jump-menu li:nth-child(2){transition-delay:25ms}
-.jump-menu li:nth-child(3){transition-delay:40ms}
-.jump-menu li:nth-child(4){transition-delay:55ms}
-.jump-menu li:nth-child(5){transition-delay:70ms}
-.jump-menu li:nth-child(6){transition-delay:85ms}
-.jump-menu li:nth-child(7){transition-delay:100ms}
-.jump-menu li:nth-child(8){transition-delay:115ms}
-.jump-menu li:nth-child(9){transition-delay:130ms}
-.jump-menu li:nth-child(10){transition-delay:145ms}
-.jump-menu li:nth-child(11){transition-delay:160ms}
-.jump-menu li:nth-child(12){transition-delay:175ms}
-.jump-menu a{display:block;padding:8px 12px;color:var(--ink);text-decoration:none;font-size:12px;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.jump-menu a:hover,.jump-menu a:focus-visible{background:color-mix(in srgb,var(--clay) 10%,transparent);color:var(--clay-deep);outline:none}
-:root[data-theme="dark"] .jump-menu a:hover,:root[data-theme="dark"] .jump-menu a:focus-visible{color:var(--clay)}
-@media (prefers-reduced-motion:reduce){.jump-menu,.jump-menu li,.jump-btn .caret{transition:none;transform:none}}
+/* ---------- section floating sidebar (navigate · reorder · hide) ---------- */
+/* Standardized on the design-system "Section floating sidebar": a rail of ticks
+   pinned to the right edge that opens into a draggable, hideable section menu. */
+/* rest at half opacity so the rail sits quietly; full opacity on hover/focus/open */
+.secnav{position:fixed;top:50%;right:1.1rem;transform:translateY(-50%);z-index:50;font-family:var(--mono);opacity:.5;transition:opacity .25s ease}
+.secnav:hover,.secnav:focus-within,.secnav.open{opacity:1}
+/* the rail is now just the ticks — the pill background lives on .secnav-panel so it
+   can morph into the menu. Ticks overlay the panel and fade out as it opens. */
+.secnav-rail{display:flex;flex-direction:column;justify-content:center;gap:9px;width:26px;min-height:120px;padding:14px 6px;
+  position:relative;z-index:2;cursor:pointer;transition:opacity .25s ease}
+.secnav-rail:focus-visible{outline:2px solid var(--clay);outline-offset:3px;border-radius:var(--r-pill)}
+.secnav-ticks{display:flex;flex-direction:column;gap:8px}
+.secnav-ticks .tick{height:2px;border-radius:2px;background:var(--line);transition:background .2s,opacity .2s}
+.secnav-ticks .tick.on{background:var(--clay);height:3px}
+.secnav-ticks .tick.off{opacity:.4;background:repeating-linear-gradient(90deg,var(--ink-faint) 0 3px,transparent 3px 6px)}
+/* morphing surface: rest = pill footprint (translucent, rounded), hover = white menu.
+   width / max-height / border-radius / background all transition together. */
+.secnav-panel{position:absolute;top:50%;right:0;transform:translateY(-50%);z-index:1;
+  width:26px;min-width:0;max-height:120px;overflow:hidden;padding:8px;
+  background:color-mix(in srgb,var(--surface) 16%,transparent);border:1px solid transparent;border-radius:var(--r-pill);
+  box-shadow:var(--card-shadow);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);pointer-events:none;
+  transition:width .32s cubic-bezier(.2,.8,.2,1),max-height .34s cubic-bezier(.2,.8,.2,1),
+    border-radius .15s cubic-bezier(.3,.9,.3,1),background-color .3s ease,border-color .18s ease,padding .24s ease}
+.secnav:hover .secnav-panel,.secnav:focus-within .secnav-panel,.secnav.open .secnav-panel{
+  width:250px;max-height:min(calc(100vh - 3rem),560px);overflow-y:auto;border-radius:var(--r-lg);
+  background:var(--surface);border-color:var(--card-brd);pointer-events:auto}
+/* the menu contents fade in once the surface has begun to open, and out immediately */
+.secnav-panel .secnav-top,.secnav-panel .secnav-items{opacity:0;transition:opacity .14s ease}
+/* fallback reveal (block fade) when the GSAP row-stagger isn't active */
+.secnav:not(.secnav-gsap):hover .secnav-top,.secnav:not(.secnav-gsap):focus-within .secnav-top,.secnav:not(.secnav-gsap).open .secnav-top,
+.secnav:not(.secnav-gsap):hover .secnav-items,.secnav:not(.secnav-gsap):focus-within .secnav-items,.secnav:not(.secnav-gsap).open .secnav-items{opacity:1;transition:opacity .2s ease .09s}
+/* when GSAP drives the rows, keep the list container shown and let GSAP stagger each row */
+.secnav-gsap .secnav-items{opacity:1;transition:none}
+.secnav:hover .secnav-rail,.secnav:focus-within .secnav-rail,.secnav.open .secnav-rail{opacity:0;pointer-events:none}
+.secnav-top{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);text-decoration:none;
+  padding:8px 10px;margin-bottom:2px;border-radius:var(--r-sm);cursor:pointer;transition:background .15s,color .15s}
+.secnav-top:hover{background:var(--paper-2);color:var(--ink)}
+.secnav-top svg{width:13px;height:13px;flex:none}
+.secnav-items{display:flex;flex-direction:column}
+.secnav-item{display:grid;grid-template-columns:16px 1fr 24px;align-items:center;gap:8px;user-select:none;
+  padding:7px 8px;border-radius:var(--r-sm);font-size:12.5px;color:var(--ink);transition:background .15s}
+.secnav-item:hover{background:var(--paper-2)}
+.secnav-item.dragging{opacity:.5;background:var(--paper-3);box-shadow:var(--card-shadow)}
+.secnav-grip{display:grid;place-items:center;color:var(--ink-faint);cursor:grab;opacity:.55;transition:opacity .15s,color .15s}
+.secnav-item:hover .secnav-grip{opacity:1;color:var(--ink-soft)}
+.secnav-grip:active{cursor:grabbing}
+.secnav-grip svg{width:12px;height:12px}
+.secnav-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);text-decoration:none;cursor:pointer}
+.secnav-label:hover{color:var(--clay)}
+.secnav-eye{display:grid;place-items:center;width:24px;height:24px;padding:0;border:none;background:none;color:var(--ink-faint);
+  cursor:pointer;border-radius:6px;transition:color .15s,background .15s}
+.secnav-eye:hover{color:var(--clay);background:color-mix(in srgb,var(--clay) 12%,transparent)}
+.secnav-eye svg{width:15px;height:15px}
+.secnav-eye .eye-off{display:none}
+.secnav-item.hidden .secnav-label{color:var(--ink-faint);text-decoration:line-through;text-decoration-color:var(--line-soft)}
+.secnav-item.hidden .secnav-eye .eye-on{display:none}
+.secnav-item.hidden .secnav-eye .eye-off{display:block}
+/* a hidden section is collapsed from view, never removed */
+.rsec.is-hidden{display:none}
+@media (max-width:640px){.secnav{right:.6rem}.secnav-panel{min-width:210px}}
+@media (prefers-reduced-motion:reduce){.secnav-panel,.secnav-rail,.secnav-ticks .tick{transition:none}}
 .range-bar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 4px;font-family:var(--mono);font-size:12px}
 .range-bar .filter-lbl{color:var(--ink-faint);letter-spacing:.1em;text-transform:uppercase;font-size:10.5px;margin-right:2px}
-.range-preset{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);background:var(--card-2);border:1px solid var(--line);border-radius:999px;padding:4px 12px;cursor:pointer;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:color .2s,border-color .2s,transform .15s}
-.range-preset:hover{border-color:var(--ink-faint);color:var(--ink);transform:translateY(-1px)}
-.range-preset.active{background:var(--ac);color:#fff;border-color:var(--ac);box-shadow:0 4px 12px -4px var(--ac)}
+/* .range-preset chrome is provided by the shared .fpill rule near the top */
 .range-bar input[type=date]{font-family:var(--mono);font-size:12px;color:var(--ink);background:color-mix(in srgb,var(--paper-2) 60%,transparent);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
 .range-bar .sep{color:var(--ink-faint);padding:0 2px}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important;transition-duration:.001s!important}}
