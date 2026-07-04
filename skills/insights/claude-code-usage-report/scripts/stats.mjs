@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { execFileSync } from "node:child_process";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { render } from "./render.mjs";
 
 const HOME = os.homedir();
@@ -1479,6 +1479,6 @@ function main() {
 }
 
 // Only dispatch the CLI when invoked directly (not on import).
-if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === SCRIPT) {
   main();
 }
