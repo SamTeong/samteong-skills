@@ -224,9 +224,6 @@ tr.total td{font-weight:700;border-top:2px solid var(--line);font-family:var(--m
 .cc-row b{color:var(--ink);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 @media(max-width:760px){.colcards{grid-template-columns:1fr}.colcards>div{border-right:none;border-bottom:1px solid var(--line-soft);padding:16px 0}.colcards>div:first-child{padding-top:0}.colcards>div:last-child{border-bottom:none}}
 .subhead{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin:22px 0 12px}
-.statline{display:flex;flex-wrap:wrap;gap:20px}
-.statline .s .v{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.statline .s .k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px}
 .eff-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
 .eff{background:var(--card);border:1px solid var(--card-brd);border-radius:var(--r-lg);padding:15px 17px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--card-shadow)}
 .eff .nm{display:flex;align-items:center;font-family:var(--mono);font-size:11px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -324,11 +321,9 @@ footer code{background:color-mix(in srgb,var(--paper-2) 70%,transparent);padding
     border-radius .15s cubic-bezier(.3,.9,.3,1),background-color .3s ease,border-color .18s ease,padding .24s ease}
 /* the menu contents fade in once the surface has begun to open, and out immediately */
 .secnav-panel .secnav-top,.secnav-panel .secnav-items{opacity:0;transition:opacity .14s ease}
-/* fallback reveal (block fade) when the GSAP row-stagger isn't active */
-.secnav:not(.secnav-gsap):hover .secnav-top,.secnav:not(.secnav-gsap):focus-within .secnav-top,.secnav:not(.secnav-gsap).open .secnav-top,
-.secnav:not(.secnav-gsap):hover .secnav-items,.secnav:not(.secnav-gsap):focus-within .secnav-items,.secnav:not(.secnav-gsap).open .secnav-items{opacity:1;transition:opacity .2s ease .09s}
-/* when GSAP drives the rows, keep the list container shown and let GSAP stagger each row */
-.secnav-gsap .secnav-items{opacity:1;transition:none}
+/* reveal (block fade) on hover/focus/open */
+.secnav:hover .secnav-top,.secnav:focus-within .secnav-top,.secnav.open .secnav-top,
+.secnav:hover .secnav-items,.secnav:focus-within .secnav-items,.secnav.open .secnav-items{opacity:1;transition:opacity .2s ease .09s}
 .secnav:hover .secnav-rail,.secnav:focus-within .secnav-rail,.secnav.open .secnav-rail{opacity:0;pointer-events:none;
   /* mouse-in (unchanged): ticks fade out promptly, no delay */
   transition:opacity .25s ease}

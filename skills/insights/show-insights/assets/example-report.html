@@ -236,9 +236,6 @@ tr.total td{font-weight:700;border-top:2px solid var(--line);font-family:var(--m
 .cc-row b{color:var(--ink);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 @media(max-width:760px){.colcards{grid-template-columns:1fr}.colcards>div{border-right:none;border-bottom:1px solid var(--line-soft);padding:16px 0}.colcards>div:first-child{padding-top:0}.colcards>div:last-child{border-bottom:none}}
 .subhead{font-family:var(--mono);font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin:22px 0 12px}
-.statline{display:flex;flex-wrap:wrap;gap:20px}
-.statline .s .v{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.statline .s .k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px}
 .eff-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
 .eff{background:var(--card);border:1px solid var(--card-brd);border-radius:var(--r-lg);padding:15px 17px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--card-shadow)}
 .eff .nm{display:flex;align-items:center;font-family:var(--mono);font-size:11px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -336,11 +333,9 @@ footer code{background:color-mix(in srgb,var(--paper-2) 70%,transparent);padding
     border-radius .15s cubic-bezier(.3,.9,.3,1),background-color .3s ease,border-color .18s ease,padding .24s ease}
 /* the menu contents fade in once the surface has begun to open, and out immediately */
 .secnav-panel .secnav-top,.secnav-panel .secnav-items{opacity:0;transition:opacity .14s ease}
-/* fallback reveal (block fade) when the GSAP row-stagger isn't active */
-.secnav:not(.secnav-gsap):hover .secnav-top,.secnav:not(.secnav-gsap):focus-within .secnav-top,.secnav:not(.secnav-gsap).open .secnav-top,
-.secnav:not(.secnav-gsap):hover .secnav-items,.secnav:not(.secnav-gsap):focus-within .secnav-items,.secnav:not(.secnav-gsap).open .secnav-items{opacity:1;transition:opacity .2s ease .09s}
-/* when GSAP drives the rows, keep the list container shown and let GSAP stagger each row */
-.secnav-gsap .secnav-items{opacity:1;transition:none}
+/* reveal (block fade) on hover/focus/open */
+.secnav:hover .secnav-top,.secnav:focus-within .secnav-top,.secnav.open .secnav-top,
+.secnav:hover .secnav-items,.secnav:focus-within .secnav-items,.secnav.open .secnav-items{opacity:1;transition:opacity .2s ease .09s}
 .secnav:hover .secnav-rail,.secnav:focus-within .secnav-rail,.secnav.open .secnav-rail{opacity:0;pointer-events:none;
   /* mouse-in (unchanged): ticks fade out promptly, no delay */
   transition:opacity .25s ease}
@@ -384,7 +379,7 @@ footer code{background:color-mix(in srgb,var(--paper-2) 70%,transparent);padding
 <header><div class='wrap'>
 <div class='hero-grid'><div class='flag'>
     <div class='eyebrow-hero'>ZERO TELEMETRY. LOCAL ONLY.</div>
-    <div class='term' id='term'><span class='ln'><span class='mut'>reading ~/.agents/.show-insights/state/stats.csv &hellip;</span></span><span class='ln'><span class='mut'>generated 2026-07-04 15:27:07</span><span class='cur'></span></span></div>
+    <div class='term' id='term'><span class='ln'><span class='mut'>reading ~/.agents/.show-insights/state/stats.csv &hellip;</span></span><span class='ln'><span class='mut'>generated 2026-07-04 16:33:35</span><span class='cur'></span></span></div>
     <h1 class='hl' id='top'>Know exactly what Claude &nbsp;Code costs you.</h1>
     <p class='lead'>Read straight from your own session logs: every dollar, token, and working hour, itemized below. Nothing leaves your disk.</p>
 </div><aside class='flagcard'><span class='numlbl'>Total spend &middot; <span id='flagRange'>all time</span></span><span class='flagnum' id='flagNum'>&mdash;</span><div class='hero-spark' id='flagSpark'></div><div class='flagstats'><div><span class='v' id='flagSessions'>&mdash;</span><span class='l'>sessions</span></div><div><span class='v' id='flagTokens'>&mdash;</span><span class='l'>tokens</span></div><div><span class='v' id='flagModels'>&mdash;</span><span class='l'>models</span></div></div></aside></div>
@@ -438,7 +433,7 @@ footer code{background:color-mix(in srgb,var(--paper-2) 70%,transparent);padding
 <div class='card rv'><h3>Cost by model</h3><div id='sec-model-cost'></div></div></div>
 <div class='card rv'><h3>Model adoption — cost share by month</h3><div id='sec-share'></div></div></section>
 <section class='rsec' id='rsec-roadmap' data-sec='sec-insights-roadmap-what-could-come-next'><header class='shead' id='sec-insights-roadmap-what-could-come-next'><div class='shead-title'><h2>Insights roadmap</h2><span class='sub'>what could come next</span></div></header>
-<div class='filter-bar'><span class='filter-lbl'>Roadmap</span><button id='road-filter' class='lg-all' type='button' aria-pressed='true'>Show available</button></div><div class='sgs hide-avail' id='road-sgs'><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>Prompt patterns</span><span class='sg-t'>history.jsonl present — add prompt-length distribution, prompts/session, and think-time between prompts (when in the day you&#x27;re most productive).</span></div><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>Task completion</span><span class='sg-t'>22 TaskCreate todo lists in ~/.claude/tasks — add a todo completion-rate stat (done vs abandoned per session).</span></div><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>File churn</span><span class='sg-t'>191 file-history snapshots — surface most-edited files/repos and real churn, independent of statusline line counts.</span></div><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>Response latency</span><span class='sg-t'>Transcript message timestamps support a think-time vs generation-time split per session.</span></div><div class='sg rv' data-st='partial'><span class='sg-b st-part'>partial</span><span class='sg-a'>LOC coverage</span><span class='sg-t'>lines added/removed present for 61/398 sessions (15%); $/line is now cost-scoped to line-bearing rows and shown as &#x27;—&#x27; below 5% coverage. Value still firms up as more sessions record via the statusline.</span></div><div class='sg rv' data-st='partial'><span class='sg-b st-part'>partial</span><span class='sg-a'>Active-time tracking</span><span class='sg-t'>$/hour now uses an active-time proxy (cost&gt;0 sessions, per-session duration uncapped — legit sessions can exceed 8h) instead of raw transcript wall-clock span, which counted idle/hung sessions (e.g. 577h @ $0). The $0-cost filter alone drops idle/hung sessions; proxy still underestimates real hourly cost because idle is distributed within billed sessions; a true fix needs turn-level active-time capture in the statusline, not transcript span.</span></div><div class='sg rv' data-st='partial'><span class='sg-b st-part'>partial</span><span class='sg-a'>Rate-limit utilization</span><span class='sg-t'>rl_5h_pct / rl_7d_pct now charted (utilization %, throttle-safety &gt;80%/100%, spend per 7d%-point at peak). Forward-only from the statusline rate_limits field (Claude Code v2.1.80+, Claude.ai Pro/Max only — absent for API-key/Bedrock/Vertex and some Max 20x oauth users). Coverage grows as sessions record; efficient-use judgment firms up once a full 7-day window is captured.</span></div><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>Statusline archive</span><span class='sg-t'>107 sessions archived in sessions.jsonl — mine rate-limit % and context-fullness trends next.</span></div><div class='sg rv' data-st='idea'><span class='sg-b st-idea'>idea</span><span class='sg-a'>Report UX</span><span class='sg-t'>Add a date-range filter, a session search box, sortable tables, and CSV/PNG export.</span></div><div class='sg rv' data-st='idea'><span class='sg-b st-idea'>idea</span><span class='sg-a'>Report UX</span><span class='sg-t'>Per-project filter mirroring the model filter; drill from a project into its sessions.</span></div><div class='sg rv' data-st='idea'><span class='sg-b st-idea'>idea</span><span class='sg-a'>Cross-tool</span><span class='sg-t'>Reconcile against other AI-coding spend trackers (e.g. CodeBurn, agent-insights) for spend across Copilot, Cursor, Codex, if you use any.</span></div></div></section>
+<div class='filter-bar'><span class='filter-lbl'>Roadmap</span><button id='road-filter' class='lg-all' type='button' aria-pressed='true'>Show available</button></div><div class='sgs hide-avail' id='road-sgs'><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>Prompt patterns</span><span class='sg-t'>history.jsonl present — add prompt-length distribution, prompts/session, and think-time between prompts (when in the day you&#x27;re most productive).</span></div><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>Task completion</span><span class='sg-t'>22 TaskCreate todo lists in ~/.claude/tasks — add a todo completion-rate stat (done vs abandoned per session).</span></div><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>File churn</span><span class='sg-t'>196 file-history snapshots — surface most-edited files/repos and real churn, independent of statusline line counts.</span></div><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>Response latency</span><span class='sg-t'>Transcript message timestamps support a think-time vs generation-time split per session.</span></div><div class='sg rv' data-st='partial'><span class='sg-b st-part'>partial</span><span class='sg-a'>LOC coverage</span><span class='sg-t'>lines added/removed present for 61/398 sessions (15%); $/line is now cost-scoped to line-bearing rows and shown as &#x27;—&#x27; below 5% coverage. Value still firms up as more sessions record via the statusline.</span></div><div class='sg rv' data-st='partial'><span class='sg-b st-part'>partial</span><span class='sg-a'>Active-time tracking</span><span class='sg-t'>$/hour now uses an active-time proxy (cost&gt;0 sessions, per-session duration uncapped — legit sessions can exceed 8h) instead of raw transcript wall-clock span, which counted idle/hung sessions (e.g. 577h @ $0). The $0-cost filter alone drops idle/hung sessions; proxy still underestimates real hourly cost because idle is distributed within billed sessions; a true fix needs turn-level active-time capture in the statusline, not transcript span.</span></div><div class='sg rv' data-st='partial'><span class='sg-b st-part'>partial</span><span class='sg-a'>Rate-limit utilization</span><span class='sg-t'>rl_5h_pct / rl_7d_pct now charted (utilization %, throttle-safety &gt;80%/100%, spend per 7d%-point at peak). Forward-only from the statusline rate_limits field (Claude Code v2.1.80+, Claude.ai Pro/Max only — absent for API-key/Bedrock/Vertex and some Max 20x oauth users). Coverage grows as sessions record; efficient-use judgment firms up once a full 7-day window is captured.</span></div><div class='sg rv' data-st='available'><span class='sg-b st-ok'>available</span><span class='sg-a'>Statusline archive</span><span class='sg-t'>107 sessions archived in sessions.jsonl — mine rate-limit % and context-fullness trends next.</span></div><div class='sg rv' data-st='idea'><span class='sg-b st-idea'>idea</span><span class='sg-a'>Report UX</span><span class='sg-t'>Add a date-range filter, a session search box, sortable tables, and CSV/PNG export.</span></div><div class='sg rv' data-st='idea'><span class='sg-b st-idea'>idea</span><span class='sg-a'>Report UX</span><span class='sg-t'>Per-project filter mirroring the model filter; drill from a project into its sessions.</span></div><div class='sg rv' data-st='idea'><span class='sg-b st-idea'>idea</span><span class='sg-a'>Cross-tool</span><span class='sg-t'>Reconcile against other AI-coding spend trackers (e.g. CodeBurn, agent-insights) for spend across Copilot, Cursor, Codex, if you use any.</span></div></div></section>
 </div><!-- #report-sections -->
 <footer>Generated locally from ~/.agents/.show-insights/state/stats.csv. All session data stays on this machine. Line counts, API time and rate-limit data are captured from the statusline going forward; older sessions show them as 0/—. Tool usage, projects, subagents, skills and compactions are derived from transcripts (retroactive). Run <code>improve.mjs roadmap</code> for the roadmap as text.</footer>
 </div>
@@ -457,7 +452,6 @@ const CFG = {
   LINE_COV: 0.05,
   PRESETS: [{id:"7d",label:"last 7 days",days:7},{id:"30d",label:"last 30 days",days:30},{id:"all",label:"all time"}]
 };
-'use strict';
 // ---- fmt helpers ----
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function escAttr(s){return esc(s).replace(/'/g,'&#39;').replace(/"/g,'&#34;');}
@@ -468,7 +462,6 @@ function fmtAbbr(n){n=+n||0;var u=[['b',1e9],['m',1e6],['k',1e3]];for(var i=0;i<
 function pad2(n){return String(n).padStart(2,'0');}
 function el(id){return document.getElementById(id);}
 function isDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);}
-function jsWeekday(d){return (d.getDay()+6)%7;}  // Mon=0..Sun=6
 function addDays(iso,n){var y=+iso.slice(0,4),m=+iso.slice(5,7),d=+iso.slice(8,10);var dt=new Date(y,m-1,d+n);return dt.getFullYear()+'-'+pad2(dt.getMonth()+1)+'-'+pad2(dt.getDate());}
 
 // ---- derived-stats math (client-side, embedded in the report) ----
@@ -635,7 +628,6 @@ function donutHtml(data,centerVal,centerSub){
   var legend='';data.forEach(function(x){if(x.v<=0)return;legend+="<div class='li'><i style='background:"+x.c+"'></i><b>"+esc(x.k)+"</b><span class='pc'>"+(x.v/total*100).toFixed(0)+"%</span></div>";});
   return "<div class='donut-wrap'><div class='donut'><svg viewBox='0 0 200 200' width='176' style='max-width:100%'>"+segs+center+"</svg></div><div class='donut-legend'>"+legend+"</div></div>";
 }
-function statline(items){var cells='';items.forEach(function(it){cells+="<div class='s'><div class='v'>"+esc(it[1])+"</div><div class='k'>"+esc(it[0])+"</div></div>";});return "<div class='statline'>"+cells+"</div>";}
 // callout/note row (design-system: Callouts & notes > Note variants) — bold figure + label
 function noteRow(cls,iconPaths,v,k,tip){return "<div class='note"+(cls?' '+cls:'')+"'"+(tip?" title='"+escAttr(tip)+"'":"")+"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'>"+iconPaths+"</svg><div class='txt'><b>"+esc(v)+"</b> "+esc(k)+"</div></div>";}
 // efficiency rate readout — big figure with a clay slash-unit (the ratio operator) + caption
@@ -896,15 +888,14 @@ function initControls(range){
 
 // ---- model-filter (breakdown bars only) ----
 var CHART={},ACTIVE=new Set();
-function _fmt(v){return '$'+v.toFixed(2);}
 function _vis(){return ACTIVE.size?ACTIVE:new Set(CHART.models);}
 function _chart(target,data){
   var vis=_vis(),keys=Object.keys(data).sort().reverse(),totals={},mx=0;
   keys.forEach(function(k){var t=0;Object.keys(data[k]).forEach(function(m){if(vis.has(m))t+=data[k][m];});totals[k]=t;if(t>mx)mx=t;});
   mx=mx||1;var h='',any=false;
   keys.forEach(function(k){var t=totals[k];if(t<=0)return;any=true;var segs='';
-    CHART.models.forEach(function(m){if(!vis.has(m))return;var c=data[k][m]||0;if(c<=0)return;segs+='<div class="seg" style="width:'+(c/mx*100).toFixed(4)+'%;background:'+CHART.colors[m]+'" data-tip="'+escAttr(m+' · '+_fmt(c))+'"></div>';});
-    h+='<div class="bar-row"><div class="bar-label">'+esc(k)+'</div><div class="sbar-track">'+segs+'</div><div class="bar-val">'+_fmt(t)+'</div></div>';
+    CHART.models.forEach(function(m){if(!vis.has(m))return;var c=data[k][m]||0;if(c<=0)return;segs+='<div class="seg" style="width:'+(c/mx*100).toFixed(4)+'%;background:'+CHART.colors[m]+'" data-tip="'+escAttr(m+' · '+fmtMoney(c))+'"></div>';});
+    h+='<div class="bar-row"><div class="bar-label">'+esc(k)+'</div><div class="sbar-track">'+segs+'</div><div class="bar-val">'+fmtMoney(t)+'</div></div>';
   });
   target.innerHTML=any?h:'<p class="muted">No data for selected models.</p>';
 }
@@ -1000,10 +991,9 @@ document.addEventListener('DOMContentLoaded',main);
  function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
  function saveState(){var order=[],hidden=[];secs().forEach(function(s){order.push(s.dataset.sec);if(s.classList.contains('is-hidden'))hidden.push(s.dataset.sec);});try{localStorage.setItem(KEY,JSON.stringify({order:order,hidden:hidden}));}catch(e){}}
  function revealIn(s){s.classList.remove('is-hidden');s.querySelectorAll('.rv').forEach(function(e){e.classList.add('in');e.style.opacity='';e.style.transform='';});}
- // Reordering the DOM leaves GSAP's scroll-reveal triggers pointing at stale
- // positions, so cards that scrolled into view can stay stuck at opacity:0. After
- // a reorder we drop those triggers and force every card visible.
- function revealAll(){if(window.ScrollTrigger){try{window.ScrollTrigger.getAll().forEach(function(t){t.kill();});}catch(e){}}host.querySelectorAll('.rv').forEach(function(e){e.classList.add('in');e.style.opacity='1';e.style.transform='none';});}
+ // Reordering the DOM can leave scroll-reveal cards stuck at opacity:0, so after a
+ // reorder we force every card visible.
+ function revealAll(){host.querySelectorAll('.rv').forEach(function(e){e.classList.add('in');e.style.opacity='1';e.style.transform='none';});}
  // apply persisted order + hidden state to the real sections
  var st=loadState();
  if(st.order&&st.order.length)st.order.forEach(function(id){var s=secById(id);if(s)host.appendChild(s);});
@@ -1017,7 +1007,7 @@ document.addEventListener('DOMContentLoaded',main);
  itemsBox.addEventListener('dragover',function(e){e.preventDefault();if(!dragEl)return;var a=afterEl(e.clientY);if(a==null)itemsBox.appendChild(dragEl);else itemsBox.insertBefore(dragEl,a);});
  itemsBox.addEventListener('dragend',function(){if(dragEl){dragEl.classList.remove('dragging');dragEl=null;}itemsBox.querySelectorAll('.secnav-item').forEach(function(it){var s=secById(it.dataset.sec);if(s)host.appendChild(s);});saveState();buildTicks();revealAll();window.scrollTo({top:0,behavior:'smooth'});});
  itemsBox.addEventListener('click',function(e){var eye=e.target.closest('.secnav-eye');if(eye){e.preventDefault();var it=eye.closest('.secnav-item'),s=secById(it.dataset.sec),hid=it.classList.toggle('hidden');if(s){if(hid)s.classList.add('is-hidden');else revealIn(s);}eye.setAttribute('aria-pressed',hid?'true':'false');saveState();buildTicks();return;}if(e.target.closest('.secnav-label'))setOpen(false);});
- function setOpen(o){nav.classList.toggle('open',o);requestAnimationFrame(syncOpen);}
+ function setOpen(o){nav.classList.toggle('open',o);}
  rail.addEventListener('click',function(){setOpen(!nav.classList.contains('open'));});
  rail.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();setOpen(!nav.classList.contains('open'));}});
  nav.querySelector('.secnav-top').addEventListener('click',function(){setOpen(false);});
@@ -1026,24 +1016,6 @@ document.addEventListener('DOMContentLoaded',main);
  buildItems();
  window.addEventListener('scroll',highlight,{passive:true});
  window.addEventListener('resize',highlight);
- // --- GSAP row-stagger enhancement (progressive; the CSS block-fade is the fallback) ---
- var _reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
- var gsapReady=false,rowTl=null,rowOpen=false;
- function _rows(){return [nav.querySelector('.secnav-top')].concat(Array.prototype.slice.call(itemsBox.querySelectorAll('.secnav-item')));}
- function syncOpen(){if(!gsapReady||!rowTl)return;var open=nav.classList.contains('open')||nav.matches(':hover')||nav.matches(':focus-within');if(open===rowOpen)return;rowOpen=open;if(open){rowTl.timeScale(1);rowTl.play();}else{rowTl.timeScale(1.9);rowTl.reverse();}}
- function initGsap(){
-   if(gsapReady||_reduced||!window.gsap)return false;
-   gsapReady=true;nav.classList.add('secnav-gsap');
-   var rs=_rows();
-   gsap.set(itemsBox,{opacity:1});
-   gsap.set(rs,{autoAlpha:0,x:14});
-   rowTl=gsap.timeline({paused:true});
-   rowTl.to(rs,{autoAlpha:1,x:0,duration:.34,ease:'power3.out',stagger:0.026},0.06);
-   ['mouseenter','mouseleave','focusin','focusout'].forEach(function(ev){nav.addEventListener(ev,function(){requestAnimationFrame(syncOpen);});});
-   return true;
- }
- // gsap is CDN-loaded after this inline script, so retry until it's ready (or give up)
- if(!initGsap())addEventListener('load',function(){if(!initGsap()){var n=0,iv=setInterval(function(){if(initGsap()||++n>12)clearInterval(iv);},180);}});
 })();
 </script>
 <script>

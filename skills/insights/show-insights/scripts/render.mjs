@@ -1,10 +1,10 @@
 // HTML report renderer for show-insights: render(c) -> full self-contained document,
-// in the "paper-and-clay" design language (see design-system/DESIGN-SYSTEM.md).
+// in the "paper-and-clay" design language.
 // The page layout lives in sources/base.html ({{PLACEHOLDER}} slots) and the larger
 // hero/header block in sources/hero.html; short section markup is inlined as
 // constants below, each returned by its render_<section>() function. Client-side
 // chart code is sources/app.js, page CSS is sources/style.css + sources/fonts.css
-// (base64-inlined woff2 from fetch-fonts.mjs), including the jump-nav/topbar
+// (base64-inlined woff2 from fetch-fonts.mjs), including the secnav/topbar
 // chrome, and the reveal + ambient-glow scripts are sources/motion.html. The
 // whole document is fully self-contained — zero external requests at view time.
 import fs from "node:fs";
@@ -39,13 +39,9 @@ function isFile(p) {
   }
 }
 
+// html.escape(quote=True) equivalent: & < > " '
 function esc(s) {
-  return htmlEscape(s === null || s === undefined ? "" : String(s));
-}
-
-// Python html.escape(quote=True): & < > " '
-function htmlEscape(s) {
-  return String(s)
+  return String(s === null || s === undefined ? "" : s)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -309,10 +305,9 @@ const SIDEBAR_JS = `
  function loadState(){try{return JSON.parse(localStorage.getItem(KEY))||{};}catch(e){return {};}}
  function saveState(){var order=[],hidden=[];secs().forEach(function(s){order.push(s.dataset.sec);if(s.classList.contains('is-hidden'))hidden.push(s.dataset.sec);});try{localStorage.setItem(KEY,JSON.stringify({order:order,hidden:hidden}));}catch(e){}}
  function revealIn(s){s.classList.remove('is-hidden');s.querySelectorAll('.rv').forEach(function(e){e.classList.add('in');e.style.opacity='';e.style.transform='';});}
- // Reordering the DOM leaves GSAP's scroll-reveal triggers pointing at stale
- // positions, so cards that scrolled into view can stay stuck at opacity:0. After
- // a reorder we drop those triggers and force every card visible.
- function revealAll(){if(window.ScrollTrigger){try{window.ScrollTrigger.getAll().forEach(function(t){t.kill();});}catch(e){}}host.querySelectorAll('.rv').forEach(function(e){e.classList.add('in');e.style.opacity='1';e.style.transform='none';});}
+ // Reordering the DOM can leave scroll-reveal cards stuck at opacity:0, so after a
+ // reorder we force every card visible.
+ function revealAll(){host.querySelectorAll('.rv').forEach(function(e){e.classList.add('in');e.style.opacity='1';e.style.transform='none';});}
  // apply persisted order + hidden state to the real sections
  var st=loadState();
  if(st.order&&st.order.length)st.order.forEach(function(id){var s=secById(id);if(s)host.appendChild(s);});
@@ -326,7 +321,7 @@ const SIDEBAR_JS = `
  itemsBox.addEventListener('dragover',function(e){e.preventDefault();if(!dragEl)return;var a=afterEl(e.clientY);if(a==null)itemsBox.appendChild(dragEl);else itemsBox.insertBefore(dragEl,a);});
  itemsBox.addEventListener('dragend',function(){if(dragEl){dragEl.classList.remove('dragging');dragEl=null;}itemsBox.querySelectorAll('.secnav-item').forEach(function(it){var s=secById(it.dataset.sec);if(s)host.appendChild(s);});saveState();buildTicks();revealAll();window.scrollTo({top:0,behavior:'smooth'});});
  itemsBox.addEventListener('click',function(e){var eye=e.target.closest('.secnav-eye');if(eye){e.preventDefault();var it=eye.closest('.secnav-item'),s=secById(it.dataset.sec),hid=it.classList.toggle('hidden');if(s){if(hid)s.classList.add('is-hidden');else revealIn(s);}eye.setAttribute('aria-pressed',hid?'true':'false');saveState();buildTicks();return;}if(e.target.closest('.secnav-label'))setOpen(false);});
- function setOpen(o){nav.classList.toggle('open',o);requestAnimationFrame(syncOpen);}
+ function setOpen(o){nav.classList.toggle('open',o);}
  rail.addEventListener('click',function(){setOpen(!nav.classList.contains('open'));});
  rail.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();setOpen(!nav.classList.contains('open'));}});
  nav.querySelector('.secnav-top').addEventListener('click',function(){setOpen(false);});
@@ -335,24 +330,6 @@ const SIDEBAR_JS = `
  buildItems();
  window.addEventListener('scroll',highlight,{passive:true});
  window.addEventListener('resize',highlight);
- // --- GSAP row-stagger enhancement (progressive; the CSS block-fade is the fallback) ---
- var _reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
- var gsapReady=false,rowTl=null,rowOpen=false;
- function _rows(){return [nav.querySelector('.secnav-top')].concat(Array.prototype.slice.call(itemsBox.querySelectorAll('.secnav-item')));}
- function syncOpen(){if(!gsapReady||!rowTl)return;var open=nav.classList.contains('open')||nav.matches(':hover')||nav.matches(':focus-within');if(open===rowOpen)return;rowOpen=open;if(open){rowTl.timeScale(1);rowTl.play();}else{rowTl.timeScale(1.9);rowTl.reverse();}}
- function initGsap(){
-   if(gsapReady||_reduced||!window.gsap)return false;
-   gsapReady=true;nav.classList.add('secnav-gsap');
-   var rs=_rows();
-   gsap.set(itemsBox,{opacity:1});
-   gsap.set(rs,{autoAlpha:0,x:14});
-   rowTl=gsap.timeline({paused:true});
-   rowTl.to(rs,{autoAlpha:1,x:0,duration:.34,ease:'power3.out',stagger:0.026},0.06);
-   ['mouseenter','mouseleave','focusin','focusout'].forEach(function(ev){nav.addEventListener(ev,function(){requestAnimationFrame(syncOpen);});});
-   return true;
- }
- // gsap is CDN-loaded after this inline script, so retry until it's ready (or give up)
- if(!initGsap())addEventListener('load',function(){if(!initGsap()){var n=0,iv=setInterval(function(){if(initGsap()||++n>12)clearInterval(iv);},180);}});
 })();
 `;
 

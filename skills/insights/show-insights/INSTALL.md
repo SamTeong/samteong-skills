@@ -5,8 +5,10 @@ Interactive HTML Claude Code Insights report (cost, tokens, efficiency, usage pa
 ## Prerequisites
 
 - **Claude Code** (provides `~/.claude/projects/*/*.jsonl` transcripts + statusline JSON payload).
-- **Node** on PATH (ships with Claude Code, guaranteed).
+- **Node ≥ 18** on PATH (ships with Claude Code, guaranteed; global `fetch` in `fetch-fonts.mjs` needs 18+).
 - This skill at `~/.agents/skills/show-insights/` (or anywhere — paths resolve relative to the script, install location not hard-coded).
+
+State root defaults to `~/.agents/.show-insights/state`. Set `SHOW_INSIGHTS_STATE` to relocate it — both `statusline.mjs` (capture) and `stats.mjs` (record/report/estimate) honor it, so they must see the same value or capture and reads split.
 
 ## Install
 

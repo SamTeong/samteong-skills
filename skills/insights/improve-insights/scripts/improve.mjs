@@ -5,7 +5,6 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { parseArgs } from "node:util";
-import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const HOME = os.homedir();
@@ -126,55 +125,10 @@ function _data_inventory() {
   };
 }
 
-// ---- Python-style output formatting (preserve the prior Python CLI output shape) ----
-
-function pyBool(b) {
-  return b ? "True" : "False";
-}
-
-function roundHalfEven(x, ndigits) {
-  if (!Number.isFinite(x)) return x;
-  const m = Math.pow(10, ndigits);
-  const scaled = x * m;
-  const floor = Math.floor(scaled);
-  const diff = scaled - floor;
-  let r;
-  if (diff > 0.5) r = floor + 1;
-  else if (diff < 0.5) r = floor;
-  else r = floor % 2 === 0 ? floor : floor + 1;
-  return r / m;
-}
-
-function fmt0f(x) {
-  // Mirror Python f"{x:.0f}" — round half to even, no decimal point.
-  return String(Math.trunc(roundHalfEven(x, 0)));
-}
-
-function pyDictRepr(d) {
-  // Mirror Python repr for dict[str, int]: {'k': v, 'k2': v2}.
-  return "{" + Object.entries(d).map(([k, v]) => `'${k}': ${v}`).join(", ") + "}";
-}
-
-function pyJsonDumps(obj) {
-  // Mirror json.dumps(obj, ensure_ascii=False) default separators (', ', ': ').
-  return _pyJson(obj);
-}
-
-function _pyJson(v) {
-  if (v === null || v === undefined) return "null";
-  if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "number") return String(v);
-  if (typeof v === "string") return JSON.stringify(v);
-  if (Array.isArray(v)) {
-    return "[" + v.map(_pyJson).join(", ") + "]";
-  }
-  return "{" + Object.entries(v).map(([k, val]) => JSON.stringify(k) + ": " + _pyJson(val)).join(", ") + "}";
-}
-
 // ---- roadmap ----
 
 async function build_roadmap() {
-  // Return { suggestions, inventory, sessions, totals, usage }.
+  // Return { suggestions, inventory, totals, usage }.
   // Each suggestion: {area, status in (available|partial|idea), text}.
   const inv = _data_inventory();
   const m = await _load_stats_module();
@@ -221,7 +175,7 @@ async function build_roadmap() {
   // --- capture/coverage gaps (fill as more sessions record) ---
   add("LOC coverage", "partial",
     `lines added/removed present for ${loc_cov}/${totals.sessions || 0} sessions ` +
-    `(${fmt0f(loc_cov / n * 100)}%); $/line is now cost-scoped to line-bearing rows and ` +
+    `(${Math.round(loc_cov / n * 100)}%); $/line is now cost-scoped to line-bearing rows and ` +
     "shown as '—' below 5% coverage. Value still firms up as more sessions record via the statusline.");
   add("Active-time tracking", "partial",
     "$/hour now uses an active-time proxy (cost>0 sessions, per-session duration uncapped " +
@@ -254,24 +208,24 @@ async function build_roadmap() {
   add("Cross-tool", "idea",
     "Reconcile against other AI-coding spend trackers (e.g. CodeBurn, agent-insights) " +
     "for spend across Copilot, Cursor, Codex, if you use any.");
-  return { suggestions: sg, inventory: inv, sessions, totals, usage };
+  return { suggestions: sg, inventory: inv, totals, usage };
 }
 
 async function cmd_roadmap(args) {
   const { suggestions: sg, inventory: inv, totals, usage } = await build_roadmap();
   if (args.json) {
-    console.log(pyJsonDumps(sg));
+    console.log(JSON.stringify(sg));
     return;
   }
   console.log("=== improve-insights · pipeline audit ===");
-  console.log(`stats.mjs found: ${pyBool(isFile(STATS_MJS))}   sessions in stats.csv: ${totals.sessions || 0}`);
-  console.log(`transcripts=${inv.transcripts}  history.jsonl=${pyBool(inv.history)}  tasks=${inv.tasks}  ` +
+  console.log(`stats.mjs found: ${isFile(STATS_MJS)}   sessions in stats.csv: ${totals.sessions || 0}`);
+  console.log(`transcripts=${inv.transcripts}  history.jsonl=${inv.history}  tasks=${inv.tasks}  ` +
     `file-history=${inv.file_history}  sessions.jsonl=${inv.archive}`);
   if (usage.tools && Object.keys(usage.tools).length) {
     const entries = Object.entries(usage.tools);
     entries.sort((a, b) => b[1] - a[1]); // stable: preserves insertion order on ties
     const top = Object.fromEntries(entries.slice(0, 8));
-    console.log(`top tools: ${pyDictRepr(top)}`);
+    console.log(`top tools: ${JSON.stringify(top)}`);
   }
   console.log("\n=== roadmap (status · area · idea) ===");
   for (const s of sg) {
