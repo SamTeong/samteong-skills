@@ -933,7 +933,26 @@ function _rebuild_stats_csv(excludeSid, files) {
     out_lines.push(COLS.map((c) => _csv_field(c in r ? r[c] : "")).join(","));
   }
   fs.writeFileSync(STATS_CSV, out_lines.join("\n") + "\n", { encoding: "utf-8", mode: 0o600 });
-  return { sessions: rows.length, with_cost, no_cost: rows.length - with_cost };
+  // Now that snapshots are folded into stats.csv, clear their staging files —
+  // mirroring `record`: archive the raw statusline to sessions.jsonl, then
+  // unlink. Only remove a snapshot whose sid actually landed in the written CSV
+  // (so a snapshot with no transcript and no row isn't dropped unmerged), and
+  // never touch the excluded active session's file (its data was skipped).
+  const written = new Set(rows.map((r) => r.session_id));
+  let removed = 0;
+  for (const p of fs.globSync(`${STATE_GLOB}/*.json`)) {
+    const sid = path.basename(p, ".json");
+    if (sid === excludeSid || !written.has(sid)) continue;
+    const st = read_cost_state(sid);
+    if (st && st.raw !== null && st.raw !== undefined) _archive(sid, st.raw);
+    try {
+      fs.unlinkSync(p);
+      removed += 1;
+    } catch {
+      /* ignore */
+    }
+  }
+  return { sessions: rows.length, with_cost, no_cost: rows.length - with_cost, cleared: removed };
 }
 
 function cmd_backfill() {
