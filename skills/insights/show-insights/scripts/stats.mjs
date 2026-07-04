@@ -1067,7 +1067,7 @@ function _abbr(n) {
 
 // ---- report (HTML) ----
 
-export function _load_stats() {
+export function _load_stats(csvPath = STATS_CSV) {
   const days = {};
   const months = {};
   const per_model = {};
@@ -1079,7 +1079,7 @@ export function _load_stats() {
   const sessions = [];
   const usage = { tools: {}, tool_errors: 0, agents: {}, skills: {}, compactions: 0 };
   const projects = {};
-  const text = fs.readFileSync(STATS_CSV, "utf-8");
+  const text = fs.readFileSync(csvPath, "utf-8");
   for (const row of dictReader(text)) {
     const ts = (row.timestamp || "").trim();
     if (ts === "timestamp" || (row.total_cost_usd || "").trim() === "total_cost_usd") continue;
