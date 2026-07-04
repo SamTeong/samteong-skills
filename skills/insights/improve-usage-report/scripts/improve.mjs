@@ -1,6 +1,6 @@
-// improve-insights: audit the show-insights pipeline end-to-end (capture -> schema ->
+// improve-usage-report: audit the usage-report pipeline end-to-end (capture -> schema ->
 // aggregation -> visualization) and emit a prioritized improvement roadmap.
-// Read-only, stdlib only. Imports show-insights' stats.mjs as the data layer.
+// Read-only, stdlib only. Imports usage-report' stats.mjs as the data layer.
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const HOME = os.homedir();
 const CLAUDE_DIR = path.join(HOME, ".claude");
 const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects");
-const SKILL_STATE_DIR = path.join(HOME, ".agents", ".show-insights", "state");
+const SKILL_STATE_DIR = path.join(HOME, ".agents", ".usage-report", "state");
 const SESSIONS_JSONL = path.join(SKILL_STATE_DIR, "sessions.jsonl");
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.dirname(SCRIPT_DIR);
@@ -39,10 +39,10 @@ function _sibling_skill(name, file) {
   return anchor;
 }
 
-const STATS_MJS = _sibling_skill("show-insights", "stats.mjs");
+const STATS_MJS = _sibling_skill("usage-report", "stats.mjs");
 
 async function _load_stats_module() {
-  // Import show-insights' stats.mjs so we reuse its single-pass CSV loader (DRY).
+  // Import usage-report' stats.mjs so we reuse its single-pass CSV loader (DRY).
   if (!isFile(STATS_MJS)) return null;
   try {
     return await import(pathToFileURL(STATS_MJS).href);
@@ -217,7 +217,7 @@ async function cmd_roadmap(args) {
     console.log(JSON.stringify(sg));
     return;
   }
-  console.log("=== improve-insights · pipeline audit ===");
+  console.log("=== improve-usage-report · pipeline audit ===");
   console.log(`stats.mjs found: ${isFile(STATS_MJS)}   sessions in stats.csv: ${totals.sessions || 0}`);
   console.log(`transcripts=${inv.transcripts}  history.jsonl=${inv.history}  tasks=${inv.tasks}  ` +
     `file-history=${inv.file_history}  sessions.jsonl=${inv.archive}`);

@@ -1,9 +1,9 @@
-// Cross-platform statusline for the show-insights capture pipeline.
+// Cross-platform statusline for the usage-report capture pipeline.
 //
 // Contract (the only hard requirement): write the raw statusline JSON payload
 // — read verbatim from stdin — to
-//     ~/.agents/.show-insights/state/cost-state/<session_id>.json
-// (last write per session wins ≈ final snapshot). The show-insights SessionEnd
+//     ~/.agents/.usage-report/state/cost-state/<session_id>.json
+// (last write per session wins ≈ final snapshot). The usage-report SessionEnd
 // hook then projects that JSON into stats.csv and archives it to sessions.jsonl.
 //
 // Everything below the contract renders the two-line status display: model,
@@ -23,7 +23,7 @@ const raw = Buffer.concat(chunks).toString("utf8");
 let d;
 try { d = JSON.parse(raw); } catch { process.exit(0); }
 
-const stateRoot = process.env.SHOW_INSIGHTS_STATE || join(homedir(), ".agents", ".show-insights", "state");
+const stateRoot = process.env.USAGE_REPORT_STATE || join(homedir(), ".agents", ".usage-report", "state");
 const stateDir = join(stateRoot, "cost-state");
 
 // --- Contract: persist the raw payload ---
