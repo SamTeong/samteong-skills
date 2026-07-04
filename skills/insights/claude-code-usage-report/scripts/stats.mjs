@@ -12,11 +12,11 @@ const CLAUDE_DIR = path.join(HOME, ".claude");
 const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects");
 // State root; USAGE_REPORT_STATE overrides it (must match statusline.mjs, which
 // honors the same env var — otherwise capture writes and record/report reads split).
-const SKILL_STATE_DIR = process.env.USAGE_REPORT_STATE || path.join(HOME, ".agents", ".usage-report", "state");
+const SKILL_STATE_DIR = process.env.USAGE_REPORT_STATE || path.join(HOME, ".agents", ".claude-code-usage-report", "state");
 const STATE_DIR = path.join(SKILL_STATE_DIR, "cost-state");
 export const STATS_CSV = path.join(SKILL_STATE_DIR, "stats.csv");
 const SESSIONS_JSONL = path.join(SKILL_STATE_DIR, "sessions.jsonl");
-const REPORTS_DIR = path.join(HOME, ".agents", ".usage-report", "reports");
+const REPORTS_DIR = path.join(HOME, ".agents", ".claude-code-usage-report", "reports");
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.dirname(SCRIPT_DIR);
 const SCRIPT = fileURLToPath(import.meta.url);
@@ -1321,7 +1321,7 @@ function cmd_install(args) {
   const already = existing.some((c) => _is_our_record_hook(c, stats_abs));
   const foreign = existing.filter((c) => _is_foreign_record_hook(c, stats_abs));
 
-  print("=== usage-report install ===");
+  print("=== claude-code-usage-report install ===");
   print(`platform: ${process.platform}   interpreter: node`);
   print(`stats.mjs: ${stats_abs}`);
   print(`settings: ${s_path}`);

@@ -6,20 +6,20 @@ Claude Code agent skills by SamTeong.
 
 ### insights
 
-- [`usage-report`](skills/insights/usage-report/SKILL.md) — collect, visualize, and estimate from local Claude Code session-cost data. Renders an interactive HTML Insights report from `~/.agents/.usage-report/state/stats.csv`.
-- [`improve-usage-report`](skills/insights/improve-usage-report/SKILL.md) — audit and improve the insights pipeline end-to-end (collection, schema, aggregation, visualization). Companion to `usage-report`.
+- [`claude-code-usage-report`](skills/insights/claude-code-usage-report/SKILL.md) — collect, visualize, and estimate from local Claude Code session-cost data. Renders an interactive HTML usage report from `~/.agents/.claude-code-usage-report/state/stats.csv`.
+- [`claude-code-usage-report-suggestions`](skills/insights/claude-code-usage-report-suggestions/SKILL.md) — audit and improve the insights pipeline end-to-end (collection, schema, aggregation, visualization). Companion to `claude-code-usage-report`.
 
 ## Install
 
 Each skill is self-contained (Node stdlib only; `node` ships with Claude Code). See each skill's `SKILL.md` / `INSTALL.md`.
 
-`usage-report` install (writes the `SessionEnd` hook + creates state dirs):
+`claude-code-usage-report` install (writes the `SessionEnd` hook + creates state dirs):
 
 ```
 node <skill-dir>/scripts/stats.mjs install
 ```
 
-`improve-usage-report` has no hooks of its own — install `usage-report` and the roadmap section works automatically.
+`claude-code-usage-report-suggestions` has no hooks of its own — install `claude-code-usage-report` and the roadmap section works automatically.
 
 ## License
 
