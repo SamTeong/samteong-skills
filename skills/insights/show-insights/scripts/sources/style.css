@@ -3,6 +3,7 @@
   --bg:var(--paper); --surface:#FFFDF8; --surface-2:#EFE9DC;
   --ink:#26211B; --ink-soft:#6E6558; --ink-faint:#9C9384;
   --line:#DED6C6; --line-soft:#E8E1D3;
+  --weekend:color-mix(in srgb,var(--ink-faint) 16%,var(--paper));
   --clay:#D97757; --clay-deep:#C15F3C; --amber:#E0A03C; --sage:#4E9E7B; --azure:#5484B0; --red:#C6553F;
   --ac:var(--clay-deep);
   --head-bg:transparent; --head-ink:var(--ink); --head-soft:var(--ink-soft);
@@ -26,6 +27,7 @@
   --surface:#201B15; --surface-2:#282218;
   --ink:#EFE8D9; --ink-soft:#A79C8A; --ink-faint:#6F6656;
   --line:#2E2820; --line-soft:#251F19;
+  --weekend:color-mix(in srgb,var(--ink-faint) 22%,var(--paper));
   --clay:#E58B60; --clay-deep:#E0714C; --amber:#EEB65E; --sage:#5FC49A; --azure:#78ABDC; --red:#E27A63;
   --ac:var(--clay);
   --card:rgba(28,23,18,0.55); --card-2:rgba(33,27,21,0.78); --card-brd:rgba(255,255,255,0.07);
