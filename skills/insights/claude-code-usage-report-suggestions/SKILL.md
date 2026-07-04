@@ -9,13 +9,13 @@ metadata:
 
 Companion to `claude-code-usage-report` (single responsibility: that skill *collects*/*visualizes*; this skill *improves* the whole pipeline). Two modes: **advise** (default — prioritized roadmap) and **implement** (on request — make the change).
 
-`SKILL_DIR` = this skill's directory. Runs via `node` (ships with Claude Code, on PATH). claude-code-usage-report is a sibling — its `scripts/stats.mjs` is resolved next to this skill (no hardcoded install path) and read as the data layer. No hooks of its own; only reads claude-code-usage-report's data, invoked by claude-code-usage-report's report.
+`SKILL_DIR` = this skill's directory. Runs via `node`. claude-code-usage-report is a sibling — its `scripts/stats.mjs` is resolved next to this skill (no hardcoded install path) and read as the data layer. No hooks of its own; only reads claude-code-usage-report's data, invoked by claude-code-usage-report's report.
 
 ## Pipeline it covers (audit each layer)
 
 1. **Collection** — statusline stashes full statusline JSON to `~/.agents/.claude-code-usage-report/state/cost-state/<sid>.json` (see claude-code-usage-report's capture contract; reference statusline at `claude-code-usage-report/scripts/statusline.mjs`); SessionEnd hook `stats.mjs record` projects it + transcript-derived fields into `stats.csv` and archives raw JSON to `~/.agents/.claude-code-usage-report/state/sessions.jsonl`.
 2. **Schema/storage** — `stats.csv` columns + the `facets_json` blob (tools, errors, agents, skills, cwd/branch, compactions).
-3. **Aggregation** — `_load_stats()` single-pass reader → days/months/per_model/totals/usage/projects.
+3. **Aggregation** — `_load_stats()` parses rows into `sessions` (+ `totals`/`usage` tallies for the roadmap); day/month/model aggregates are re-derived client-side from the embedded payload.
 4. **Visualization** — `report` renders the self-contained HTML (KPIs, charts, heatmaps, tables).
 
 ## Steps
