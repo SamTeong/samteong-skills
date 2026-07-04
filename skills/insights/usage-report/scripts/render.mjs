@@ -1,4 +1,4 @@
-// HTML report renderer for show-insights: render(c) -> full self-contained document,
+// HTML report renderer for usage-report: render(c) -> full self-contained document,
 // in the "paper-and-clay" design language.
 // The page layout lives in sources/base.html ({{PLACEHOLDER}} slots) and the larger
 // hero/header block in sources/hero.html; short section markup is inlined as
@@ -75,7 +75,7 @@ function _inum(v) {
   return Number.isNaN(f) ? 0 : Math.trunc(f);
 }
 
-// ---- roadmap (improve-insights integration) ----
+// ---- roadmap (improve-usage-report integration) ----
 
 function _sibling_skill(name, file) {
   // Resolve a sibling skill's script path without hardcoding the install root.
@@ -91,7 +91,7 @@ function _sibling_skill(name, file) {
   return anchor;
 }
 
-const IMPROVE_MJS = _sibling_skill("improve-insights", "improve.mjs");
+const IMPROVE_MJS = _sibling_skill("improve-usage-report", "improve.mjs");
 
 function _fetch_roadmap() {
   if (!isFile(IMPROVE_MJS)) return null;
@@ -111,7 +111,7 @@ function _fetch_roadmap() {
 function _render_suggestions(sg) {
   if (!sg) {
     return (
-      "<p class='muted'>Run <code>/improve-insights</code> for the pipeline " +
+      "<p class='muted'>Run <code>/improve-usage-report</code> for the pipeline " +
       "improvement roadmap (capture → schema → aggregation → visualization).</p>"
     );
   }
@@ -265,7 +265,7 @@ function render_roadmap() {
   return _fill(ROADMAP_HTML, { ROADMAP_BODY: _render_suggestions(_fetch_roadmap()) });
 }
 
-const FOOTER_HTML = `<footer>Generated locally from ~/.agents/.show-insights/state/stats.csv. All session data stays on this machine. Line counts, API time and rate-limit data are captured from the statusline going forward; older sessions show them as 0/—. Tool usage, projects, subagents, skills and compactions are derived from transcripts (retroactive). Run <code>improve.mjs roadmap</code> for the roadmap as text.</footer>`;
+const FOOTER_HTML = `<footer>Generated locally from ~/.agents/.usage-report/state/stats.csv. All session data stays on this machine. Line counts, API time and rate-limit data are captured from the statusline going forward; older sessions show them as 0/—. Tool usage, projects, subagents, skills and compactions are derived from transcripts (retroactive). Run <code>improve.mjs roadmap</code> for the roadmap as text.</footer>`;
 
 function render_footer() {
   return FOOTER_HTML;

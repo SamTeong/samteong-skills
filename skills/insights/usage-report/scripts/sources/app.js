@@ -421,10 +421,10 @@ function render(range){
 
 // ---- controls ----
 function loadRange(){
-  try{var r=JSON.parse(localStorage.getItem('show-insights.range')||'null');if(r&&isDate(r.from)&&isDate(r.to)&&r.from<=r.to){r.preset=r.preset||null;return r;}}catch(e){}
+  try{var r=JSON.parse(localStorage.getItem('usage-report.range')||'null');if(r&&isDate(r.from)&&isDate(r.to)&&r.from<=r.to){r.preset=r.preset||null;return r;}}catch(e){}
   return {from:FIRST_DATE,to:LAST_DATE,preset:'all'};
 }
-function persistRange(r){try{localStorage.setItem('show-insights.range',JSON.stringify(r));}catch(e){}}
+function persistRange(r){try{localStorage.setItem('usage-report.range',JSON.stringify(r));}catch(e){}}
 function setActivePreset(id){document.querySelectorAll('.range-preset').forEach(function(b){b.className=b.dataset.p===id?'range-preset active':'range-preset';});}
 function applyPreset(id){
   var from,to=LAST_DATE;
@@ -503,7 +503,7 @@ function show(v){
   el('month-view').style.display=v==='month'?'':'none';
   el('btn-day').className=v==='day'?'active':'';
   el('btn-month').className=v==='month'?'active':'';
-  try{localStorage['show-insights.view']=v;}catch(e){}
+  try{localStorage['usage-report.view']=v;}catch(e){}
 }
 function showTok(v){
   el('tok-day').style.display=v==='day'?'':'none';
@@ -538,6 +538,6 @@ function main(){
   render(range);
   initRoadmapFilter();
   __lbl(document.documentElement.dataset.theme);
-  try{if(localStorage['show-insights.view']==='month')show('month');}catch(e){}
+  try{if(localStorage['usage-report.view']==='month')show('month');}catch(e){}
 }
 document.addEventListener('DOMContentLoaded',main);

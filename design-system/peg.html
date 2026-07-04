@@ -345,7 +345,7 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:30px}
 
 <footer>
   <div class="wrap foot">
-    <span>Run <b style="color:var(--clay)">/show-insights</b> to generate your own &mdash; works entirely offline</span>
+    <span>Run <b style="color:var(--clay)">/usage-report</b> to generate your own &mdash; works entirely offline</span>
     <span>Every figure read from local files &middot; no external calls</span>
     <span>claude-code insights &middot; 2026-07-02</span>
   </div>
@@ -355,7 +355,7 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:30px}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-/* ============ DATA (from show-insights report, last 30d) ============ */
+/* ============ DATA (from usage-report report, last 30d) ============ */
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
@@ -564,7 +564,7 @@ function typeTerm(cb){
   const t=document.getElementById('term');
   const lines=[
     {h:'<span class="cmd">&#10095; <b>claude</b> insights --range 30d --scope local</span>'},
-    {h:'<span class="mut">reading ~/.agents/.show-insights/state/stats.csv &hellip;</span>'},
+    {h:'<span class="mut">reading ~/.agents/.usage-report/state/stats.csv &hellip;</span>'},
     {h:'<span class="ok">&#10003;</span> <span class="mut">ready in 0.4s &middot; 30-day window, nothing left this machine</span>'},
   ];
   if(REDUCED){t.innerHTML=lines.map(l=>`<span class="ln">${l.h}</span>`).join('');cb&&cb();return;}
