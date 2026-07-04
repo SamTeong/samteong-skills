@@ -183,10 +183,6 @@ const BREAKDOWN_HTML = `<header class='shead' id='sec-breakdown'><div class='she
 <section id='day-view'><div class='card rv'><h3>Cost by day</h3><div id='day-chart'></div></div><div class='scroll' id='day-table'></div></section>
 <section id='month-view' style='display:none'><div class='card rv'><h3>Cost by month</h3><div id='month-chart'></div></div><div class='scroll' id='month-table'></div></section>`;
 
-function render_breakdown() {
-  return BREAKDOWN_HTML;
-}
-
 const TOKEN_ECONOMICS_HTML = `<header class='shead' id='sec-token-economics'><div class='shead-title'><h2>Token economics</h2><span class='sub'>where the tokens go and what the cache saves</span></div></header>
 <div class='ctl-row'><div id='tok-legend' class='legend'></div><div class='toggle'><button id='tbtn-day' class='active' onclick="showTok('day')">by day</button><button id='tbtn-month' onclick="showTok('month')">by month</button></div></div>
 <div id='tok-day'><div class='card rv'><h3>Token composition by day</h3><div id='tok-day-bars'></div></div></div>
@@ -194,41 +190,21 @@ const TOKEN_ECONOMICS_HTML = `<header class='shead' id='sec-token-economics'><di
 <div class='grid12'><div class='card rv'><h3>Token mix</h3><div id='tok-mix'></div></div>
 <div class='card rv'><h3>Cache-creation / cache-read ratio by day</h3><div id='cc-ratio'></div></div></div>`;
 
-function render_token_economics() {
-  return TOKEN_ECONOMICS_HTML;
-}
-
 const EFFICIENCY_HTML = `<header class='shead' id='sec-efficiency'><div class='shead-title'><h2>Efficiency</h2><span class='sub'>what a session costs in tokens, time, and lines</span></div></header>
 <h3 class='subhead'>Per-model efficiency</h3>
 <div id='sec-eff-models' class='rv'></div>
 <div class='card rv'><div id='sec-throughput'></div></div>`;
 
-function render_efficiency() {
-  return EFFICIENCY_HTML;
-}
-
 const RATE_LIMITS_HTML = `<header class='shead' id='sec-rate-limit-utilization-5h-7d'><div class='shead-title'><h2>Rate-limit utilization · 5h &amp; 7d</h2><span class='sub'>how close you run to the usage caps</span></div></header>
 <div class='card rv'><h3>5h / 7d usage-limit efficiency</h3><div id='sec-ratelimits'></div></div>`;
 
-function render_rate_limits() {
-  return RATE_LIMITS_HTML;
-}
-
 const WHEN_YOU_WORK_HTML = `<header class='shead' id='sec-when-you-work'><div class='shead-title'><h2>When you work</h2><span class='sub'>spend by weekday and hour</span></div></header>
 <div class='card flush2 rv'><h3>Spend by day-of-week × hour</h3><div id='sec-dayhour'></div></div>`;
-
-function render_when_you_work() {
-  return WHEN_YOU_WORK_HTML;
-}
 
 const SESSIONS_HTML = `<header class='shead' id='sec-sessions'><div class='shead-title'><h2>Sessions</h2><span class='sub'>the runs that carry the bill</span></div></header>
 <div class='grid2'><div class='card rv'><h3>Cost vs tokens (per session)</h3><div id='sec-scatter'></div></div>
 <div class='card rv'><h3 id='sec-pareto-title'></h3><div id='sec-pareto'></div></div></div>
 <div class='scroll' id='sec-toptable'></div>`;
-
-function render_sessions() {
-  return SESSIONS_HTML;
-}
 
 const USAGE_PATTERNS_HTML = `<header class='shead' id='sec-usage-patterns'><div class='shead-title'><h2>Usage patterns</h2><span class='sub'>tools, subagents, and skills in play</span></div></header>
 <div class='card rv'><div id='sec-usage-stats'></div></div>
@@ -236,27 +212,15 @@ const USAGE_PATTERNS_HTML = `<header class='shead' id='sec-usage-patterns'><div 
 <div class='card rv'><h3>Subagent types</h3><div id='sec-agents'></div></div></div>
 <div class='card rv'><h3>Skills invoked</h3><div id='sec-skills'></div></div>`;
 
-function render_usage_patterns() {
-  return USAGE_PATTERNS_HTML;
-}
-
 const PROJECTS_HTML = `<header class='shead' id='sec-by-project'><div class='shead-title'><h2>By project</h2><span class='sub'>which repos spend the budget</span></div></header>
 <div class='grid2'><div class='card rv'><h3>Cost by project</h3><div id='sec-proj-cost'></div></div>
 <div class='card rv'><h3>Sessions by project</h3><div id='sec-proj-sess'></div></div></div>`;
-
-function render_projects() {
-  return PROJECTS_HTML;
-}
 
 const MODELS_HTML = `<header class='shead' id='sec-models'><div class='shead-title'><h2>Models</h2><span class='sub'>cost share and adoption over time</span></div></header>
 <div class='card rv'><h3>Cost share by model (area ∝ cost)</h3><div id='sec-treemap'></div></div>
 <div class='grid2'><div class='card rv'><h3>Sessions by model</h3><div id='sec-model-sessions'></div></div>
 <div class='card rv'><h3>Cost by model</h3><div id='sec-model-cost'></div></div></div>
 <div class='card rv'><h3>Model adoption — cost share by month</h3><div id='sec-share'></div></div>`;
-
-function render_models() {
-  return MODELS_HTML;
-}
 
 const ROADMAP_HTML = `<header class='shead' id='sec-insights-roadmap-what-could-come-next'><div class='shead-title'><h2>Usage roadmap</h2><span class='sub'>what could come next</span></div></header>
 {{ROADMAP_BODY}}`;
@@ -265,11 +229,7 @@ function render_roadmap() {
   return _fill(ROADMAP_HTML, { ROADMAP_BODY: _render_suggestions(_fetch_roadmap()) });
 }
 
-const FOOTER_HTML = `<footer>Generated locally from ~/.agents/.claude-code-usage-report/state/stats.csv. All session data stays on this machine. Line counts, API time and rate-limit data are captured from the statusline going forward; older sessions show them as 0/—. Tool usage, projects, subagents, skills and compactions are derived from transcripts (retroactive). Run <code>improve.mjs roadmap</code> for the roadmap as text.</footer>`;
-
-function render_footer() {
-  return FOOTER_HTML;
-}
+const FOOTER_HTML = `<footer>Generated locally from ~/.agents/.claude-code-usage-report/state/stats.csv. All session data stays on this machine. Line counts, API time and rate-limit data are captured from the statusline going forward; older sessions show them as 0/—. Tool usage, projects, subagents, skills and compactions are derived from transcripts (retroactive). Run <code>/claude-code-usage-report-suggestions</code> for the roadmap as text.</footer>`;
 
 // Floating section sidebar (replaces the old "Go to section" fan-out). The shell
 // is static; the menu items, ticks, order and hidden-state are all derived at
@@ -278,14 +238,10 @@ function render_footer() {
 // "Section floating sidebar".
 const SIDEBAR_HTML = `<nav class='secnav' id='secnav' aria-label='Sections'>
 <div class='secnav-rail' role='button' tabindex='0' aria-label='Open section menu' title='Sections'><div class='secnav-ticks'></div></div>
-<div class='secnav-panel' role='menu' aria-label='Go to section'>
+<div class='secnav-panel' role='menu' aria-label='Sections'>
 <a class='secnav-top' href='#top' role='menuitem'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8'><path d='M12 19V5M6 11l6-6 6 6'/></svg>Top</a>
 <div class='secnav-items'></div>
 </div></nav>`;
-
-function render_sidebar() {
-  return SIDEBAR_HTML;
-}
 
 // Runtime for the floating sidebar. Reads persisted order/visibility, applies it
 // to the .rsec sections, builds the draggable + hideable menu, and keeps the rail
@@ -356,19 +312,19 @@ export function render(c) {
   return _fill(_source("base.html"), {
     STYLE: render_style(),
     HERO: render_hero(),
-    BREAKDOWN: render_breakdown(),
-    TOKEN_ECONOMICS: render_token_economics(),
-    EFFICIENCY: render_efficiency(),
-    RATE_LIMITS: render_rate_limits(),
-    WHEN_YOU_WORK: render_when_you_work(),
-    SESSIONS: render_sessions(),
-    USAGE_PATTERNS: render_usage_patterns(),
-    PROJECTS: render_projects(),
-    MODELS: render_models(),
+    BREAKDOWN: BREAKDOWN_HTML,
+    TOKEN_ECONOMICS: TOKEN_ECONOMICS_HTML,
+    EFFICIENCY: EFFICIENCY_HTML,
+    RATE_LIMITS: RATE_LIMITS_HTML,
+    WHEN_YOU_WORK: WHEN_YOU_WORK_HTML,
+    SESSIONS: SESSIONS_HTML,
+    USAGE_PATTERNS: USAGE_PATTERNS_HTML,
+    PROJECTS: PROJECTS_HTML,
+    MODELS: MODELS_HTML,
     ROADMAP: render_roadmap(),
-    FOOTER: render_footer(),
+    FOOTER: FOOTER_HTML,
     SCRIPTS: render_scripts(c.sessions),
     MOTION: render_motion(),
-    SIDEBAR: render_sidebar(),
+    SIDEBAR: SIDEBAR_HTML,
   });
 }
