@@ -295,7 +295,9 @@ footer code{background:color-mix(in srgb,var(--paper-2) 70%,transparent);padding
 /* the rail is now just the ticks — the pill background lives on .secnav-panel so it
    can morph into the menu. Ticks overlay the panel and fade out as it opens. */
 .secnav-rail{display:flex;flex-direction:column;justify-content:center;gap:9px;width:26px;min-height:120px;padding:14px 6px;
-  position:relative;z-index:2;cursor:pointer;transition:opacity .25s ease}
+  position:relative;z-index:2;cursor:pointer;
+  /* mouse-out: hold briefly, then fade the ticks back as the pill finishes collapsing */
+  transition:opacity .2s ease .08s}
 .secnav-rail:focus-visible{outline:2px solid var(--clay);outline-offset:3px;border-radius:var(--r-pill)}
 .secnav-ticks{display:flex;flex-direction:column;gap:8px}
 .secnav-ticks .tick{height:2px;border-radius:2px;background:var(--line);transition:background .2s,opacity .2s}
@@ -307,11 +309,19 @@ footer code{background:color-mix(in srgb,var(--paper-2) 70%,transparent);padding
   width:26px;min-width:0;max-height:120px;overflow:hidden;padding:8px;
   background:color-mix(in srgb,var(--surface) 16%,transparent);border:1px solid transparent;border-radius:var(--r-pill);
   box-shadow:var(--card-shadow);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);pointer-events:none;
-  transition:width .32s cubic-bezier(.2,.8,.2,1),max-height .34s cubic-bezier(.2,.8,.2,1),
-    border-radius .15s cubic-bezier(.3,.9,.3,1),background-color .3s ease,border-color .18s ease,padding .24s ease}
+  /* mouse-out (morph back to pill): quicker than the open and decisive. width /
+     max-height / border-radius share one accelerate-then-settle curve at the same
+     duration, so the corners round in step with the collapsing width — it always
+     reads as a single pill, never a wide box that has already gone pill-cornered.
+     The white surface and border fade out ahead of the shape so it reads as closing. */
+  transition:width .24s cubic-bezier(.6,0,.2,1),max-height .24s cubic-bezier(.6,0,.2,1),
+    border-radius .24s cubic-bezier(.6,0,.2,1),background-color .16s ease,border-color .12s ease,padding .18s ease}
 .secnav:hover .secnav-panel,.secnav:focus-within .secnav-panel,.secnav.open .secnav-panel{
   width:250px;max-height:min(calc(100vh - 3rem),560px);overflow-y:auto;border-radius:var(--r-lg);
-  background:var(--surface);border-color:var(--card-brd);pointer-events:auto}
+  background:var(--surface);border-color:var(--card-brd);pointer-events:auto;
+  /* mouse-in (unchanged): the original settle-out open curve */
+  transition:width .32s cubic-bezier(.2,.8,.2,1),max-height .34s cubic-bezier(.2,.8,.2,1),
+    border-radius .15s cubic-bezier(.3,.9,.3,1),background-color .3s ease,border-color .18s ease,padding .24s ease}
 /* the menu contents fade in once the surface has begun to open, and out immediately */
 .secnav-panel .secnav-top,.secnav-panel .secnav-items{opacity:0;transition:opacity .14s ease}
 /* fallback reveal (block fade) when the GSAP row-stagger isn't active */
@@ -319,7 +329,9 @@ footer code{background:color-mix(in srgb,var(--paper-2) 70%,transparent);padding
 .secnav:not(.secnav-gsap):hover .secnav-items,.secnav:not(.secnav-gsap):focus-within .secnav-items,.secnav:not(.secnav-gsap).open .secnav-items{opacity:1;transition:opacity .2s ease .09s}
 /* when GSAP drives the rows, keep the list container shown and let GSAP stagger each row */
 .secnav-gsap .secnav-items{opacity:1;transition:none}
-.secnav:hover .secnav-rail,.secnav:focus-within .secnav-rail,.secnav.open .secnav-rail{opacity:0;pointer-events:none}
+.secnav:hover .secnav-rail,.secnav:focus-within .secnav-rail,.secnav.open .secnav-rail{opacity:0;pointer-events:none;
+  /* mouse-in (unchanged): ticks fade out promptly, no delay */
+  transition:opacity .25s ease}
 .secnav-top{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--ink-soft);text-decoration:none;
   padding:8px 10px;margin-bottom:2px;border-radius:var(--r-sm);cursor:pointer;transition:background .15s,color .15s}
 .secnav-top:hover{background:var(--paper-2);color:var(--ink)}
