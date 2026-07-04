@@ -1,7 +1,8 @@
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+/* Self-contained motion: no external libraries. Reveal-on-scroll uses
+   IntersectionObserver; the ambient glow is a 2D-canvas render of drifting
+   radial gradients in the report's palette. Everything no-ops under
+   prefers-reduced-motion and pauses while the tab is hidden. */
 (function(){
   var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var css = function(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();};
@@ -12,66 +13,58 @@
 
   /* card reveal-on-scroll */
   function initReveal(){
-    if(REDUCED || !window.gsap || !window.ScrollTrigger){
-      document.querySelectorAll('.rv').forEach(function(e){ e.classList.add('in'); });
+    var els = document.querySelectorAll('.rv');
+    if(REDUCED || !('IntersectionObserver' in window)){
+      els.forEach(function(e){ e.classList.add('in'); });
       return;
     }
-    gsap.registerPlugin(ScrollTrigger);
-    gsap.utils.toArray('.rv').forEach(function(elm){
-      gsap.to(elm,{opacity:1,y:0,duration:.7,ease:'power3.out',scrollTrigger:{trigger:elm,start:'top 90%'}});
-    });
-    var hero = document.querySelector('.hero-left');
-    if(hero) gsap.from(hero,{y:16,opacity:0,duration:.9,ease:'power3.out',delay:.15});
+    var io = new IntersectionObserver(function(ents){
+      ents.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+    }, {rootMargin:'0px 0px -10% 0px'});
+    els.forEach(function(e){ io.observe(e); });
   }
 
-  /* three.js ambient glow, matched to report's warm palette */
+  /* ambient glow: drifting radial gradients, matched to the warm palette */
+  function toRGBA(c, a){
+    c = (c || '').trim();
+    if(c[0] === '#'){
+      var h = c.slice(1);
+      if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+      var n = parseInt(h, 16);
+      return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a+')';
+    }
+    var m = c.match(/\d+\.?\d*/g) || [0,0,0];
+    return 'rgba('+(m[0]||0)+','+(m[1]||0)+','+(m[2]||0)+','+a+')';
+  }
   function initGlow(){
     var canvas = document.getElementById('glow');
-    if(REDUCED || !window.THREE || !canvas) return;
-    var renderer, scene, camera, mat, raf;
-    try{ renderer = new THREE.WebGLRenderer({canvas:canvas, alpha:true, antialias:false}); }catch(e){ return; }
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
-    scene = new THREE.Scene(); camera = new THREE.Camera();
-    var hex = function(v){
-      var c = css(v), m = c.match(/\d+\.?\d*/g) || [];
-      if(c[0] === '#'){ var n = parseInt(c.slice(1),16); return new THREE.Vector3(((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255); }
-      return new THREE.Vector3((m[0]||0)/255,(m[1]||0)/255,(m[2]||0)/255);
-    };
-    var uni = {
-      uT:{value:0}, uRes:{value:new THREE.Vector2(1,1)},
-      uPaper:{value:hex('--paper')}, uC1:{value:hex('--clay')}, uC2:{value:hex('--amber')}, uC3:{value:hex('--azure')}
-    };
-    mat = new THREE.ShaderMaterial({uniforms:uni,
-      vertexShader:'void main(){gl_Position=vec4(position,1.0);}',
-      fragmentShader:'precision highp float;\n'+
-        'uniform float uT;uniform vec2 uRes;uniform vec3 uPaper,uC1,uC2,uC3;\n'+
-        'float n(vec2 p){return sin(p.x)*sin(p.y);}\n'+
-        'float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*n(p);p*=1.9;p+=vec2(1.3,2.1);a*=.55;}return v;}\n'+
-        'void main(){\n'+
-        '  vec2 uv=gl_FragCoord.xy/uRes.xy; vec2 p=uv; p.x*=uRes.x/uRes.y;\n'+
-        '  float t=uT*0.06;\n'+
-        '  float f1=fbm(p*2.2+vec2(t,t*.7));\n'+
-        '  float f2=fbm(p*3.1-vec2(t*.8,t));\n'+
-        '  float b1=smoothstep(.9,.0,length(p-vec2(uRes.x/uRes.y*0.82,0.9))-f1*.35);\n'+
-        '  float b2=smoothstep(.8,.0,length(p-vec2(uRes.x/uRes.y*0.12,0.3))-f2*.4);\n'+
-        '  float b3=smoothstep(.75,.0,length(p-vec2(uRes.x/uRes.y*0.5,0.05))-f1*.3);\n'+
-        '  vec3 col=uPaper;\n'+
-        '  col=mix(col,uC2,clamp(b1*0.45,0.,1.));\n'+
-        '  col=mix(col,uC1,clamp(b1*0.28+b3*0.32,0.,1.));\n'+
-        '  col=mix(col,uC3,clamp(b2*0.24,0.,1.));\n'+
-        '  float grain=fract(sin(dot(gl_FragCoord.xy,vec2(12.9,78.2)))*43758.5)*0.02;\n'+
-        '  col+=grain-0.01;\n'+
-        '  gl_FragColor=vec4(col,1.0);\n'+
-        '}'
-    });
-    scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), mat));
-    function size(){ var w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); uni.uRes.value.set(w*renderer.getPixelRatio(),h*renderer.getPixelRatio()); }
-    size(); addEventListener('resize', size);
+    if(REDUCED || !canvas) return;
+    var ctx = canvas.getContext('2d'); if(!ctx) return;
+    var dpr = Math.min(devicePixelRatio || 1, 1.5), W, H, raf;
+    var col = {};
+    function readCol(){ col.paper = css('--paper'); col.c1 = css('--clay'); col.c2 = css('--amber'); col.c3 = css('--azure'); }
+    function size(){ W = innerWidth; H = innerHeight; canvas.width = W*dpr; canvas.height = H*dpr; canvas.style.width = W+'px'; canvas.style.height = H+'px'; ctx.setTransform(dpr,0,0,dpr,0,0); }
+    readCol(); size(); addEventListener('resize', size);
+    /* [relX, relY, radiusFactor, colorKey, phase, speed] */
+    var blobs = [[0.82,0.10,0.95,'c2',0.0,0.06],[0.12,0.30,1.05,'c1',2.1,0.05],[0.50,0.98,0.85,'c3',4.0,0.045]];
     var t0 = performance.now();
-    function loop(){ uni.uT.value=(performance.now()-t0)/1000; renderer.render(scene,camera); raf=requestAnimationFrame(loop); }
-    loop();
-    document.addEventListener('visibilitychange', function(){ if(document.hidden) cancelAnimationFrame(raf); else loop(); });
-    window.updateGlow = function(){ uni.uPaper.value=hex('--paper'); uni.uC1.value=hex('--clay'); uni.uC2.value=hex('--amber'); uni.uC3.value=hex('--azure'); };
+    function frame(){
+      var t = (performance.now() - t0) / 1000;
+      ctx.fillStyle = toRGBA(col.paper, 1); ctx.fillRect(0,0,W,H);
+      blobs.forEach(function(b){
+        var cx = (b[0] + Math.sin(t*b[5] + b[4])*0.06) * W;
+        var cy = (b[1] + Math.cos(t*b[5]*0.8 + b[4])*0.06) * H;
+        var r = b[2] * Math.max(W,H) * 0.6;
+        var g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+        g.addColorStop(0, toRGBA(col[b[3]], 0.32));
+        g.addColorStop(1, toRGBA(col[b[3]], 0));
+        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+      });
+      raf = requestAnimationFrame(frame);
+    }
+    frame();
+    document.addEventListener('visibilitychange', function(){ if(document.hidden) cancelAnimationFrame(raf); else frame(); });
+    window.updateGlow = function(){ readCol(); };
   }
   window.updateGlow = window.updateGlow || function(){};
 
@@ -81,10 +74,16 @@
 </script>
 
 <script>
+/* Hero flag count-up + wire updateFlag into the report's render(range). */
 (function(){
   var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var firstFlag = true;
   function money(n){ return '$' + (n||0).toFixed(2); }
+  function tween(to, cb){
+    var t0 = performance.now(), dur = 1400;
+    function step(){ var p = Math.min((performance.now()-t0)/dur, 1); cb(to*(1-Math.pow(1-p,3))); if(p<1) requestAnimationFrame(step); }
+    requestAnimationFrame(step);
+  }
   function updateFlag(range){
     try{
       var list = filterSessions(range);
@@ -94,12 +93,11 @@
       el('flagTokens').textContent = fmtAbbr(tok);
       el('flagModels').textContent = Object.keys(models).length;
       var ap = document.querySelector('.range-preset.active');
-      el('flagRange').textContent = ap ? ap.textContent.toLowerCase() : (range.from + ' \u2192 ' + range.to);
+      el('flagRange').textContent = ap ? ap.textContent.toLowerCase() : (range.from + ' → ' + range.to);
       var fn = el('flagNum');
-      if(firstFlag && !REDUCED && window.gsap){
+      if(firstFlag && !REDUCED){
         firstFlag = false;
-        var o = {v:0};
-        gsap.to(o,{v:cost,duration:1.4,ease:'power2.out',onUpdate:function(){ fn.textContent = money(o.v); }});
+        tween(cost, function(v){ fn.textContent = money(v); });
       }else{
         firstFlag = false;
         fn.textContent = money(cost);
@@ -108,13 +106,5 @@
   }
   var _r = render;
   render = function(range){ _r(range); updateFlag(range); };
-  addEventListener('load', function(){
-    if(REDUCED || !window.gsap) return;
-    var lns = document.querySelectorAll('.term .ln');
-    gsap.set(lns,{opacity:0});
-    gsap.to(lns,{opacity:1,duration:.3,stagger:.28,ease:'none'});
-    var fc = document.querySelector('.flagcard');
-    if(fc) gsap.from(fc,{y:18,opacity:0,duration:.9,ease:'power3.out',delay:.25});
-  });
 })();
 </script>
