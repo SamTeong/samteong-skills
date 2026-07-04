@@ -3,17 +3,87 @@
 // whenever the design changes:
 //   npm i -g playwright-core   # or install in scope; browsers via `npx playwright install chromium`
 //   node scripts/screenshot-example.mjs
-// Override the browser binary with CHROMIUM_EXE if the default path differs.
+// playwright-core is resolved across known module roots (override: PW_CORE=<dir
+// containing node_modules/playwright-core>). Browser is auto-discovered: playwright's
+// own build -> newest ms-playwright build -> system Edge/Chrome. Override with CHROMIUM_EXE.
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { chromium } from "playwright-core";
 
 const SKILL = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const ASSETS = path.join(SKILL, "assets");
 const REPORT = pathToFileURL(path.join(ASSETS, "example-report.html")).href;
-const EXE =
-  process.env.CHROMIUM_EXE ||
-  "C:/Users/sate/AppData/Local/ms-playwright/chromium-1228/chrome-win64/chrome.exe";
+const HOME = os.homedir();
+
+// Resolve playwright-core without declaring it as a skill dep: walk a few known
+// module roots (PW_CORE override -> script-local -> ~/.agents/bin/pw-core ->
+// global npm). ESM ignores NODE_PATH, so resolve explicitly via createRequire.
+function loadChromium() {
+  const bases = [
+    process.env.PW_CORE && path.join(process.env.PW_CORE, "_"),
+    path.join(SKILL, "scripts", "_"),
+    path.join(HOME, ".agents", "bin", "pw-core", "_"),
+    process.env.APPDATA && path.join(process.env.APPDATA, "npm", "node_modules", "_"),
+    "/usr/local/lib/node_modules/_",
+  ].filter(Boolean);
+  for (const base of bases) {
+    try {
+      const entry = createRequire(base).resolve("playwright-core");
+      return import(pathToFileURL(entry).href).then((m) => m.chromium || m.default?.chromium);
+    } catch {}
+  }
+  throw new Error(
+    "playwright-core not found. Install it and a browser:\n" +
+      "  npm i -g playwright-core && npx playwright install chromium\n" +
+      "or point PW_CORE at a dir containing node_modules/playwright-core.",
+  );
+}
+
+// Newest ms-playwright chromium build for the current OS (fallback browser).
+function findMsPlaywrightChromium() {
+  const roots = [
+    process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, "ms-playwright"),
+    path.join(HOME, "AppData", "Local", "ms-playwright"),
+    path.join(HOME, "Library", "Caches", "ms-playwright"),
+    path.join(HOME, ".cache", "ms-playwright"),
+  ].filter(Boolean);
+  const rel =
+    { win32: "chrome-win64/chrome.exe", darwin: "chrome-mac/Chromium.app/Contents/MacOS/Chromium" }[
+      process.platform
+    ] || "chrome-linux/chrome";
+  for (const root of roots) {
+    if (!fs.existsSync(root)) continue;
+    const builds = fs
+      .readdirSync(root)
+      .filter((d) => d.startsWith("chromium-"))
+      .sort((a, b) => (parseInt(b.split("-")[1]) || 0) - (parseInt(a.split("-")[1]) || 0));
+    for (const b of builds) {
+      const exe = path.join(root, b, rel);
+      if (fs.existsSync(exe)) return exe;
+    }
+  }
+  return null;
+}
+
+// Launch order: explicit CHROMIUM_EXE -> playwright's own browser -> newest
+// ms-playwright build -> system Edge/Chrome (channel, needs no path).
+async function launchBrowser(chromium) {
+  if (process.env.CHROMIUM_EXE)
+    return chromium.launch({ executablePath: process.env.CHROMIUM_EXE, headless: true });
+  try {
+    return await chromium.launch({ headless: true });
+  } catch {}
+  const exe = findMsPlaywrightChromium();
+  if (exe) return chromium.launch({ executablePath: exe, headless: true });
+  for (const channel of ["msedge", "chrome"]) {
+    try {
+      return await chromium.launch({ channel, headless: true });
+    } catch {}
+  }
+  throw new Error("No Chromium/Chrome/Edge found. Run: npx playwright install chromium");
+}
 
 // [name, startAnchorId|null, endAnchorId|null, endCardH3?]
 // Start at top(startAnchorId)-pad (or page top). End at bottom of the card whose
@@ -24,7 +94,8 @@ const SHOTS = [
   ["screenshot-by-project", "sec-by-project", "sec-models"],
 ];
 
-const browser = await chromium.launch({ executablePath: EXE, headless: true });
+const chromium = await loadChromium();
+const browser = await launchBrowser(chromium);
 const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 });
 await page.goto(REPORT, { waitUntil: "networkidle" });
 // Hide sticky/fixed chrome, and flatten the position:fixed ambient glow to the
