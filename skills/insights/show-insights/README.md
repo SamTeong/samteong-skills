@@ -10,7 +10,7 @@ Hero KPIs, cumulative spend + projection, and a daily-spend calendar:
 
 ![Overview](assets/screenshot-overview.png)
 
-Token economics — composition by day, token mix, and cache-read/creation ratio:
+Token economics — input / output / cache-read / cache-creation composition by day:
 
 ![Token economics](assets/screenshot-token-economics.png)
 
@@ -19,6 +19,12 @@ Cost and sessions broken down by project:
 ![By project](assets/screenshot-by-project.png)
 
 📄 **[Full interactive example report](assets/example-report.html)** — day/month toggle, date-range filter, solo/deselect legend pills, live re-aggregation. Open in a browser. (All data anonymized.)
+
+The example is rendered from a committed anonymized fixture, `assets/example-stats.csv` — no local session data. Regenerate it after any design/render change:
+
+```sh
+node scripts/render-example.mjs
+```
 
 ## What it shows
 
