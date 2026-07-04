@@ -220,8 +220,21 @@ function svgRateTrend(sessions){
   var xlabels="<text x='"+P+"' y='"+(H-P+16)+"' fill='var(--ink-faint)'>"+x0+"</text>"+
              "<text x='"+(W-P)+"' y='"+(H-P+16)+"' text-anchor='end' fill='var(--ink-faint)'>"+xn+"</text>"+
              "<text x='"+(W-P)+"' y='"+(P-10)+"' text-anchor='end' fill='var(--ink-faint)'>% used →</text>";
-  var leg="<div class='legend' style='margin:6px 0'><span class='lg-item'><span class='lg-swatch' style='background:#4E9E7B'></span>5h window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--ac)'></span>7d window</span></div>";
-  return leg+svgWrap(W,H,axes+ceiling+th80+yticks+xlabels+d5+d7,'chart');
+  // weekend bands: group rate-limit sessions by calendar date (dow 5=Sat, 6=Sun),
+  // map each date's index range to a rect behind the lines. x-edges align to the
+  // midpoint between adjacent points so bands don't overlap neighboring weekdays.
+  var byDate={};
+  rl.forEach(function(s2,i){if(s2.dow===5||s2.dow===6){var d=s2.ts.slice(0,10);if(!byDate[d])byDate[d]={min:i,max:i};byDate[d].min=Math.min(byDate[d].min,i);byDate[d].max=Math.max(byDate[d].max,i);}});
+  var step=(n>1)?(fx(1)-fx(0))/2:0;
+  var wknd='';
+  Object.keys(byDate).sort().forEach(function(k){var b=byDate[k];
+    var x1=b.min===0?P:Math.max(P,fx(b.min)-step);
+    var x2=b.max===n-1?(W-P):Math.min(W-P,fx(b.max)+step);
+    if(x2<=x1)return;
+    wknd+="<rect x='"+x1.toFixed(1)+"' y='"+P+"' width='"+(x2-x1).toFixed(1)+"' height='"+(H-2*P)+"' fill='var(--weekend)' fill-opacity='0.5'/>";
+  });
+  var leg="<div class='legend' style='margin:6px 0'><span class='lg-item'><span class='lg-swatch' style='background:#4E9E7B'></span>5h window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--ac)'></span>7d window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--weekend);opacity:.5'></span>weekend</span></div>";
+  return leg+svgWrap(W,H,axes+ceiling+th80+yticks+xlabels+wknd+d5+d7,'chart');
 }
 function renderRateLimits(sessions){
   var rl=sessions.filter(function(s){return s.r5>0||s.r7>0;});
