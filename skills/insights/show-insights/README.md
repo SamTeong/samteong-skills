@@ -20,10 +20,11 @@ Cost and sessions broken down by project:
 
 📄 **[Full interactive example report](assets/example-report.html)** — day/month toggle, date-range filter, solo/deselect legend pills, live re-aggregation. Open in a browser. (All data anonymized.)
 
-The example is rendered from a committed anonymized fixture, `assets/example-stats.csv` — no local session data. Regenerate it after any design/render change:
+The example is rendered from a committed anonymized fixture, `assets/example-stats.csv` — no local session data. Regenerate it (and the screenshots above) after any design/render change:
 
 ```sh
-node scripts/render-example.mjs
+node scripts/render-example.mjs      # example-report.html from the fixture
+node scripts/screenshot-example.mjs  # refresh the 3 screenshots (needs playwright-core + chromium)
 ```
 
 ## What it shows
