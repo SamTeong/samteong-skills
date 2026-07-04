@@ -404,6 +404,72 @@ inside a `.secnav-stage` so both states are visible at once.
 
 ---
 
+## Component: Hero ★ new
+
+### Description
+The composition every report opens with. The **left column** is a single narrative stack —
+eyebrow, a two-line terminal readout, the display headline, then the lead — and the big-number
+**flagcard** stands alone in the right column of a `1.35fr / 1fr` grid, top-aligned to the eyebrow
+so the two labels (`ZERO TELEMETRY` / `TOTAL SPEND`) rhyme across the gap. Reading the left column
+top-to-bottom is the pitch: the terminal ("reading your logs…") is the *preamble* that earns the
+headline. It carries the whole first impression, so its rhythm has to read as *intentional* — not a
+pile of ad-hoc margins.
+
+### The rhythm rule (why it reads calm)
+Every vertical gap resolves to a token on the `--s` scale (`4·8·12·16·22·32·48`), split into two
+roles so hierarchy comes through as spacing:
+
+| Role | Tokens | Binds |
+|------|--------|-------|
+| **Tight pair** — a label to the value it names | `--s1` 4 · `--s2` 8 · `--s3` 12 | eyebrow → terminal · numlbl → flagnum · spark → caption |
+| **Block gap** — one stanza from the next | `--s4` 16 · `--s5` 22 | terminal → headline · headline → lead · flagnum → spark · rule → stats |
+
+The terminal reserves **exactly two lines** (`min-height:44px`) — a stable footprint that holds the
+top of the column without opening dead space above the headline.
+
+### Anatomy
+| Part | Class | Spacing / tokens |
+|------|-------|------------------|
+| Section padding | `header` | `var(--s6) 0 var(--s2)` (32 top / 8 bottom) |
+| Grid | `.hero-grid` | `margin-top:0` (first child after the header padding); `1.35fr / 1fr`; `gap:clamp(24px,4vw,56px)`; `align-items:start` |
+| Left column | `.flag` | narrative stack: eyebrow → terminal → headline → lead |
+| Eyebrow | `.eyebrow-hero` | mono-upper, `--clay`; no margin (leads the column) |
+| Terminal | `.term` | `margin:var(--s3) 0 0`; `min-height:44px` (two lines, no dead space) |
+| Headline | `.flag h1.hl` | `--disp`; `margin:var(--s5) 0 0` (terminal → headline block gap) |
+| Lead | `.flag .lead` | `margin:var(--s4) 0 0` |
+| Flagcard | `.flagcard` | glass card, `padding:var(--s5)` (uniform 22); `align-self:start` top-aligns it to the eyebrow |
+| Number label → number | `.numlbl` | `margin-bottom:var(--s2)` |
+| Sparkline | `.hero-spark` | `margin-top:var(--s5)`; caption `.sub2` `margin-top:var(--s1)` |
+| Stats rule | `.flagstats` | `margin-top:var(--s5)`; `padding-top:var(--s4)`; top rule `--line-soft` |
+
+### States
+| State | Behavior | Notes |
+|-------|----------|-------|
+| Default | Static composition; `.cur` blinks (CSS only — the terminal text is not typed in) | — |
+| Loading | Flagcard figures start at `—`, filled from the CSV once parsed | `min-height:44px` gives the terminal a stable two-line footprint so nothing jumps |
+| Reveal | Flagcard/sparkline animate up via `.rv` | Guarded by `prefers-reduced-motion` |
+| ≤760px | Grid collapses to one column; everything stacks eyebrow → terminal → headline → lead → flagcard | Same token rhythm applies |
+
+### Tokens used
+- **Colors:** `--clay` (eyebrow), `--ink`/`--ink-soft`/`--ink-faint` (headline/lead/labels), `--card`+`--card-brd`+`--card-shadow` (flagcard), `--line-soft` (stats rule); flagnum uses the `--ink → --clay-deep` gradient text.
+- **Spacing:** `--s1`–`--s6` per the rhythm rule above (no raw pixels except the two-line `min-height`).
+- **Typography:** `--disp` headline, `--body` lead, `--mono` for eyebrow / terminal / flagcard figures.
+
+### Accessibility
+- **Role:** page `<header>` landmark; headline is the single `<h1>`.
+- **Terminal:** decorative readout — the blinking `.cur` collapses to static under `prefers-reduced-motion`; not a live region.
+- **Screen reader:** reading order matches the visual left-column stack — eyebrow, terminal, heading, lead — then the flagcard as label/value pairs.
+
+### Do / Don't
+| ✅ Do | ❌ Don't |
+|------|---------|
+| Keep the eyebrow + terminal as the column preamble above the headline | Float the terminal full-width above both columns (breaks the left-column read) |
+| Resolve every hero gap to an `--s` token | Reach for a "looks about right" pixel value (36/18/26…) |
+| Use tight pairs for label→value, block gaps between stanzas | Space everything evenly — hierarchy disappears |
+| Size the terminal `min-height` to its real line count | Leave a fat `min-height` that opens dead space above the headline |
+
+---
+
 ## Component inventory
 
 **Carried over from `original.html`:** topbar, segmented control, status pill, icon button,
@@ -415,7 +481,8 @@ cards, footer.
 plot, calendar heatmap, buttons (primary/secondary/ghost + sizes), chips/badges, tabs, callout/note
 (default/info/warn/ok), filterable legend, jump-nav, **section floating sidebar** (collapsed rail +
 reorder/hide menu), **metric/ratio card** (eyebrow + trend + meter/sparkline), **grouped stat list**
-(mono-header definition columns), **section header** (title + wrapping filter pills + aligned toggle).
+(mono-header definition columns), **section header** (title + wrapping filter pills + aligned toggle),
+**hero** (left-column narrative stack: eyebrow → terminal → headline → lead, with the flagcard alone on the right — token-only spacing rhythm).
 
 ---
 

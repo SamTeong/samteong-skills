@@ -449,6 +449,54 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:40px}
   *{animation-duration:.001s!important;transition-duration:.001s!important}
   .rv{opacity:1;transform:none}
 }
+
+/* ---------- HERO (NEW) — the report opener: eyebrow · terminal · headline · flagcard ----------
+   Every vertical gap resolves to the --s scale, split into two roles:
+   tight pairs (--s1/2/3) bind a label to its value; block gaps (--s4/5) separate stanzas.
+   The terminal reserves exactly two lines (min-height:44px) — enough to hold the typing
+   animation without shifting layout, but no dead space above the headline. */
+.hero-demo{background:color-mix(in srgb,var(--paper-2) 38%,transparent);border:1px solid var(--line-soft);
+  border-radius:var(--r-lg);padding:var(--s6);position:relative;overflow:hidden}
+.hero-demo .eyebrow-hero{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--clay);font-weight:600}
+.hero-demo .term{font-family:var(--mono);font-size:clamp(12px,1.5vw,13.5px);color:var(--ink-soft);margin:var(--s3) 0 0;min-height:44px}
+.hero-demo .term .ln{display:block;white-space:pre-wrap}
+.hero-demo .term .mut{color:var(--ink-faint)}
+.hero-demo .cur{display:inline-block;width:8px;height:1.05em;vertical-align:-2px;background:var(--clay);margin-left:4px;animation:blink 1.1s steps(1) infinite}
+.hero-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:clamp(24px,4vw,56px);align-items:start;margin-top:var(--s5)}
+.flag h1.hl{font-family:var(--disp);font-weight:600;font-size:clamp(26px,3.4vw,40px);line-height:1.08;letter-spacing:-.02em;margin:0;max-width:20ch;text-wrap:balance;color:var(--ink)}
+.flag .lead{font-size:clamp(13px,1.5vw,15px);color:var(--ink-soft);max-width:48ch;margin:var(--s4) 0 0;line-height:1.62}
+.flagcard{align-self:start;background:var(--card);border:1px solid var(--card-brd);border-radius:var(--r-xl);padding:var(--s5);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:var(--card-shadow)}
+.numlbl{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);display:block;margin-bottom:var(--s2)}
+.flagnum{font-family:var(--mono);font-weight:700;font-size:clamp(44px,5.5vw,68px);line-height:.9;letter-spacing:-.04em;font-variant-numeric:tabular-nums;
+  background-image:linear-gradient(120deg,var(--ink),var(--clay-deep));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;display:block;width:max-content;max-width:100%}
+[data-theme="dark"] .flagnum{background-image:linear-gradient(120deg,#fff,var(--clay))}
+.hero-spark{margin-top:var(--s5)}
+.hero-spark .spark{height:38px;width:200px;display:block}
+.hero-spark .spark path{fill:none;stroke:var(--clay-deep);stroke-width:1.5}
+[data-theme=dark] .hero-spark .spark path{stroke:var(--clay)}
+.sub2{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin-top:var(--s1)}
+.flagstats{display:flex;margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--line-soft)}
+.flagstats>div{flex:1;padding:0 var(--s4);border-right:1px solid var(--line-soft)}
+.flagstats>div:first-child{padding-left:0}
+.flagstats>div:last-child{border-right:none;padding-right:0}
+.flagstats .v{display:block;font-family:var(--mono);font-weight:700;font-size:20px;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums}
+.flagstats .l{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px}
+@media (max-width:760px){.hero-grid{grid-template-columns:1fr;gap:26px}}
+/* left-column variant: eyebrow + terminal now lead the flag column, so the grid is the
+   first child (no top margin) and the headline picks up the term→headline block gap. */
+.hero-demo .hero-grid{margin-top:0}
+.hero-demo .flag>h1.hl{margin-top:var(--s5)}
+/* spacing-rhythm annotation (teaches the two-tier rule beside the demo) */
+.rhythm{display:flex;flex-direction:column}
+.rhythm .rr{display:grid;grid-template-columns:64px 1fr auto;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line-soft);font-family:var(--mono);font-size:11.5px}
+.rhythm .rr:last-child{border-bottom:none}
+.rhythm .rr .bar{height:8px;border-radius:3px;background:color-mix(in srgb,var(--clay) 32%,transparent);border:1px solid color-mix(in srgb,var(--clay) 48%,transparent)}
+.rhythm .rr .gap{color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rhythm .rr .tok{color:var(--clay-deep);font-weight:700;white-space:nowrap}
+[data-theme=dark] .rhythm .rr .tok{color:var(--clay)}
+.rhythm .grp{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:14px 0 4px}
+.rhythm .grp:first-child{margin-top:0}
+@keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
 </style>
 </head>
 <body>
@@ -476,6 +524,7 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:40px}
 
   <nav class="jump">
     <a href="#foundations">Foundations</a>
+    <a href="#hero">Hero ★</a>
     <a href="#controls">Controls</a>
     <a href="#sheader">Section header ★</a>
     <a href="#datacards">Data cards</a>
@@ -511,6 +560,67 @@ footer{padding:40px 0 60px;border-top:1px solid var(--line);margin-top:40px}
         <h3 style="margin-top:22px">Elevation</h3>
         <div class="elev" style="margin-top:10px">
           <div class="e e0">flat</div><div class="e e1">raised</div><div class="e e2">card</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HERO ============ -->
+  <section class="sec" id="hero">
+    <div class="sec-h"><h2>Hero <span class="badge-new" style="font-size:11px">new</span></h2><span class="n mono">the report opener · spacing rhythm</span></div>
+    <p class="lede">The composition every report opens with: an <b>eyebrow</b>, a two-line <b>terminal</b> readout, the display <b>headline + lead</b>, and the big-number <b>flagcard</b> on a 1.35&thinsp;/&thinsp;1 grid. It carries the whole first impression, so its vertical spacing is refined to read as <b>intentional</b> — every gap resolves to a token on the <b>spacing scale</b>, never a "looks-about-right" pixel.</p>
+
+    <div class="hero-demo rv">
+      <div class="hero-grid">
+        <div class="flag">
+          <div class="eyebrow-hero">ZERO TELEMETRY. LOCAL ONLY.</div>
+          <div class="term"><span class="ln"><span class="mut">reading ~/.agents/.show-insights/state/stats.csv &hellip;</span></span><span class="ln"><span class="mut">generated 2026-07-04 13:10:32</span><span class="cur"></span></span></div>
+          <h1 class="hl">Know exactly what Claude&nbsp;Code costs you.</h1>
+          <p class="lead">Read straight from your own session logs: every dollar, token, and working hour, itemized below. Nothing leaves your disk.</p>
+        </div>
+        <aside class="flagcard">
+          <span class="numlbl">Total spend &middot; last 7 days</span>
+          <span class="flagnum">$51.10</span>
+          <div class="hero-spark">
+            <svg class="spark" viewBox="0 0 200 38" preserveAspectRatio="none"><path d="M0 34 L44 32 L80 30 L120 27 L150 24 L172 6 L200 6"/></svg>
+            <div class="sub2">last 30 days</div>
+          </div>
+          <div class="flagstats">
+            <div><span class="v">48</span><span class="l">sessions</span></div>
+            <div><span class="v">158.3m</span><span class="l">tokens</span></div>
+            <div><span class="v">3</span><span class="l">models</span></div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="grid g2" style="align-items:start;margin-top:16px">
+      <div class="card rv">
+        <h3>Spacing rhythm</h3>
+        <p class="demo">two roles · every gap on the --s scale</p>
+        <div class="rhythm">
+          <div class="grp">Tight pair — label → value</div>
+          <div class="rr"><span class="bar" style="width:12px"></span><span class="gap">eyebrow → terminal</span><span class="tok">--s3 · 12</span></div>
+          <div class="rr"><span class="bar" style="width:8px"></span><span class="gap">number label → number</span><span class="tok">--s2 · 8</span></div>
+          <div class="rr"><span class="bar" style="width:4px"></span><span class="gap">sparkline → caption</span><span class="tok">--s1 · 4</span></div>
+          <div class="grp">Block gap — stanza → stanza</div>
+          <div class="rr"><span class="bar" style="width:22px"></span><span class="gap">terminal → headline</span><span class="tok">--s5 · 22</span></div>
+          <div class="rr"><span class="bar" style="width:16px"></span><span class="gap">headline → lead</span><span class="tok">--s4 · 16</span></div>
+          <div class="rr"><span class="bar" style="width:22px"></span><span class="gap">number → sparkline</span><span class="tok">--s5 · 22</span></div>
+          <div class="rr"><span class="bar" style="width:16px"></span><span class="gap">rule → stats row</span><span class="tok">--s4 · 16</span></div>
+        </div>
+      </div>
+      <div class="card rv">
+        <h3>What changed</h3>
+        <p class="demo">off-scale magic numbers → tokens</p>
+        <div class="rhythm">
+          <div class="rr" style="grid-template-columns:1fr auto auto;gap:10px"><span class="gap">header padding-top</span><span class="tok" style="color:var(--ink-faint);font-weight:400">36 →</span><span class="tok">--s6 · 32</span></div>
+          <div class="rr" style="grid-template-columns:1fr auto auto;gap:10px"><span class="gap">terminal min-height</span><span class="tok" style="color:var(--ink-faint);font-weight:400">66 →</span><span class="tok">44 · 2 lines</span></div>
+          <div class="rr" style="grid-template-columns:1fr auto auto;gap:10px"><span class="gap">eyebrow → terminal</span><span class="tok" style="color:var(--ink-faint);font-weight:400">14 →</span><span class="tok">--s3 · 12</span></div>
+          <div class="rr" style="grid-template-columns:1fr auto auto;gap:10px"><span class="gap">headline → lead</span><span class="tok" style="color:var(--ink-faint);font-weight:400">18 →</span><span class="tok">--s4 · 16</span></div>
+          <div class="rr" style="grid-template-columns:1fr auto auto;gap:10px"><span class="gap">flagcard padding</span><span class="tok" style="color:var(--ink-faint);font-weight:400">24/26 →</span><span class="tok">--s5 · 22</span></div>
+          <div class="rr" style="grid-template-columns:1fr auto auto;gap:10px"><span class="gap">label → number</span><span class="tok" style="color:var(--ink-faint);font-weight:400">6 →</span><span class="tok">--s2 · 8</span></div>
+          <div class="rr" style="grid-template-columns:1fr auto auto;gap:10px"><span class="gap">spark → caption</span><span class="tok" style="color:var(--ink-faint);font-weight:400">5 →</span><span class="tok">--s1 · 4</span></div>
         </div>
       </div>
     </div>
