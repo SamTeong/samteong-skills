@@ -1,6 +1,6 @@
 // claude-code-usage-report-suggestions: audit the claude-code-usage-report pipeline end-to-end (capture -> schema ->
 // aggregation -> visualization) and emit a prioritized improvement roadmap.
-// Read-only, stdlib only. Imports claude-code-usage-report' stats.mjs as the data layer.
+// Read-only, stdlib only. Imports claude-code-usage-report's stats.mjs as the data layer.
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -42,8 +42,7 @@ function _sibling_skill(name, file) {
 const STATS_MJS = _sibling_skill("claude-code-usage-report", "stats.mjs");
 
 async function _load_stats_module() {
-  // Import claude-code-usage-report' stats.mjs so we reuse its single-pass CSV loader (DRY).
-  if (!isFile(STATS_MJS)) return null;
+  // Import claude-code-usage-report's stats.mjs so we reuse its single-pass CSV loader (DRY).
   try {
     return await import(pathToFileURL(STATS_MJS).href);
   } catch {
@@ -51,76 +50,29 @@ async function _load_stats_module() {
   }
 }
 
-// ---- minimal glob (single directory-level `*`) ----
-
-function globSegToRe(seg) {
-  let s = "^";
-  for (const ch of seg) {
-    if (ch === "*") s += "[^\\\\/]*";
-    else s += ch.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-  }
-  s += "$";
-  return new RegExp(s);
-}
-
-function countGlob(pattern) {
-  const parts = pattern.split(/[\\/]/);
-  let baseEnd = 0;
-  while (baseEnd < parts.length && !parts[baseEnd].includes("*")) baseEnd++;
-  let base = parts.slice(0, baseEnd).join(path.sep);
-  if (base === "") base = path.sep;
-  const rest = parts.slice(baseEnd);
-  let count = 0;
-  _walkCount(base, rest, () => { count += 1; });
-  return count;
-}
-
-function _walkCount(dir, rest, add) {
-  if (rest.length === 0) return;
-  const seg = rest[0];
-  const remaining = rest.slice(1);
-  let entries;
+function countDir(dir) {
   try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
+    return fs.readdirSync(dir).length;
   } catch {
-    return;
+    return 0;
   }
-  const re = globSegToRe(seg);
-  for (const e of entries) {
-    if (!re.test(e.name)) continue;
-    if (remaining.length === 0) {
-      add();
-    } else if (e.isDirectory()) {
-      _walkCount(path.join(dir, e.name), remaining, add);
-    }
-  }
-}
-
-function _count_lines(text) {
-  // Mirror Python `sum(1 for _ in open(f))` under universal-newline semantics:
-  // every newline-terminated line counts, plus a trailing line if no final newline.
-  if (text === "") return 0;
-  let n = 0;
-  let i = 0;
-  while ((i = text.indexOf("\n", i)) !== -1) { n++; i++; }
-  if (!text.endsWith("\n")) n++;
-  return n;
 }
 
 function _data_inventory() {
   let archive = 0;
   if (isFile(SESSIONS_JSONL)) {
     try {
-      archive = _count_lines(fs.readFileSync(SESSIONS_JSONL, "utf-8"));
+      const text = fs.readFileSync(SESSIONS_JSONL, "utf-8");
+      archive = text ? text.trimEnd().split("\n").filter(Boolean).length : 0;
     } catch {
       archive = 0;
     }
   }
   return {
-    transcripts: countGlob(path.join(PROJECTS_DIR, "*", "*.jsonl")),
+    transcripts: fs.globSync(`${PROJECTS_DIR}/*/*.jsonl`).length,
     history: isFile(path.join(CLAUDE_DIR, "history.jsonl")),
-    tasks: countGlob(path.join(CLAUDE_DIR, "tasks", "*")),
-    file_history: countGlob(path.join(CLAUDE_DIR, "file-history", "*")),
+    tasks: countDir(path.join(CLAUDE_DIR, "tasks")),
+    file_history: countDir(path.join(CLAUDE_DIR, "file-history")),
     archive,
   };
 }
@@ -131,7 +83,8 @@ async function build_roadmap() {
   // Return { suggestions, inventory, totals, usage }.
   // Each suggestion: {area, status in (available|partial|idea), text}.
   const inv = _data_inventory();
-  const m = await _load_stats_module();
+  const stats_found = isFile(STATS_MJS);
+  const m = stats_found ? await _load_stats_module() : null;
   let sessions = [];
   let totals = { sessions: 0 };
   let usage = { tools: {}, agents: {}, skills: {} };
@@ -208,17 +161,17 @@ async function build_roadmap() {
   add("Cross-tool", "idea",
     "Reconcile against other AI-coding spend trackers (e.g. CodeBurn, agent-insights) " +
     "for spend across Copilot, Cursor, Codex, if you use any.");
-  return { suggestions: sg, inventory: inv, totals, usage };
+  return { suggestions: sg, inventory: inv, totals, usage, stats_found };
 }
 
 async function cmd_roadmap(args) {
-  const { suggestions: sg, inventory: inv, totals, usage } = await build_roadmap();
+  const { suggestions: sg, inventory: inv, totals, usage, stats_found } = await build_roadmap();
   if (args.json) {
     console.log(JSON.stringify(sg));
     return;
   }
   console.log("=== claude-code-usage-report-suggestions · pipeline audit ===");
-  console.log(`stats.mjs found: ${isFile(STATS_MJS)}   sessions in stats.csv: ${totals.sessions || 0}`);
+  console.log(`stats.mjs found: ${stats_found}   sessions in stats.csv: ${totals.sessions || 0}`);
   console.log(`transcripts=${inv.transcripts}  history.jsonl=${inv.history}  tasks=${inv.tasks}  ` +
     `file-history=${inv.file_history}  sessions.jsonl=${inv.archive}`);
   if (usage.tools && Object.keys(usage.tools).length) {

@@ -42,61 +42,10 @@ function getmtime(p) {
   return fs.statSync(p).mtimeMs / 1000;
 }
 
-// Mirror Python glob.glob for the simple patterns used here. Supports a single
-// directory-level `*` and `**` (recursive) segments. Returns absolute paths.
-function globSync(pattern) {
-  const parts = pattern.split(/[\\/]/);
-  // Find first segment containing a wildcard.
-  let baseEnd = 0;
-  while (baseEnd < parts.length && !parts[baseEnd].includes("*")) baseEnd++;
-  let base = parts.slice(0, baseEnd).join(path.sep);
-  if (base === "") base = path.sep;
-  const rest = parts.slice(baseEnd);
-  const results = [];
-  walkGlob(base, rest, results);
-  return results;
-}
-
-function walkGlob(dir, rest, out) {
-  if (rest.length === 0) {
-    if (fs.existsSync(dir)) out.push(dir);
-    return;
-  }
-  const seg = rest[0];
-  const remaining = rest.slice(1);
-  let entries;
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  if (seg === "**") {
-    // ** matches zero or more directory levels (recursive=True semantics).
-    walkGlob(dir, remaining, out); // match at this level (zero dirs)...
-    for (const e of entries) {
-      if (e.isDirectory()) {
-        walkGlob(path.join(dir, e.name), rest, out); // ...and recurse keeping ** in place.
-      }
-    }
-    return;
-  }
-  const re = globSegToRe(seg);
-  for (const e of entries) {
-    if (re.test(e.name)) {
-      walkGlob(path.join(dir, e.name), remaining, out);
-    }
-  }
-}
-
-function globSegToRe(seg) {
-  let s = "^";
-  for (const ch of seg) {
-    if (ch === "*") s += "[^\\\\/]*";
-    else s += ch.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-  }
-  s += "$";
-  return new RegExp(s);
-}
+// Forward-slash bases for fs.globSync: on Windows a backslash in a glob pattern
+// is an escape, so normalize the absolute base once. fs.globSync does the walk.
+const PROJECTS_GLOB = PROJECTS_DIR.replace(/\\/g, "/");
+const STATE_GLOB = STATE_DIR.replace(/\\/g, "/");
 
 // ---- CSV (RFC 4180) ----
 
@@ -212,14 +161,8 @@ function* iter_jsonl(p) {
 
 function epoch_from_iso(s) {
   if (!s) return null;
-  try {
-    const d = new Date(s.replace("Z", "+00:00"));
-    const t = d.getTime();
-    if (Number.isNaN(t)) return null;
-    return t / 1000;
-  } catch {
-    return null;
-  }
+  const t = new Date(s.replace("Z", "+00:00")).getTime();
+  return Number.isNaN(t) ? null : t / 1000;
 }
 
 function _dig(obj, ...keys) {
@@ -287,23 +230,18 @@ function now_local() {
 
 function local_fmt(epoch) {
   if (epoch === null || epoch === undefined) return null;
-  try {
-    const d = new Date(epoch * 1000);
-    if (Number.isNaN(d.getTime())) return null;
-    return fmtLocal(d);
-  } catch {
-    return null;
-  }
+  const d = new Date(epoch * 1000);
+  return Number.isNaN(d.getTime()) ? null : fmtLocal(d);
 }
 
 function find_transcript(sid) {
-  const hits = globSync(path.join(PROJECTS_DIR, "*", `${sid}.jsonl`));
+  const hits = fs.globSync(`${PROJECTS_GLOB}/*/${sid}.jsonl`);
   return hits.length ? hits[0] : null;
 }
 
 function session_totals(sid, mainPath) {
   const base = parse_transcript(mainPath || find_transcript(sid));
-  for (const p of globSync(path.join(PROJECTS_DIR, "*", sid, "**", "*.jsonl"))) {
+  for (const p of fs.globSync(`${PROJECTS_GLOB}/*/${sid}/**/*.jsonl`)) {
     const s = parse_transcript(p);
     base.input_tokens += s.input_tokens;
     base.output_tokens += s.output_tokens;
@@ -416,19 +354,14 @@ function parse_transcript(p) {
   return r;
 }
 
-function intOr0(v) {
-  const n = parseInt(v, 10);
-  return Number.isNaN(n) ? 0 : n;
-}
-
 // Extract token usage from an assistant message; null for synthetic/zero rows.
 function _msg_tokens(msg) {
   const usage = msg.usage && typeof msg.usage === "object" && !Array.isArray(msg.usage) && msg.usage !== null
     ? msg.usage : {};
-  const i = intOr0(usage.input_tokens);
-  const o = intOr0(usage.output_tokens);
-  const cr = intOr0(usage.cache_read_input_tokens);
-  const cc = intOr0(usage.cache_creation_input_tokens);
+  const i = _inum(usage.input_tokens);
+  const o = _inum(usage.output_tokens);
+  const cr = _inum(usage.cache_read_input_tokens);
+  const cc = _inum(usage.cache_creation_input_tokens);
   if (msg.model === "<synthetic>" || (i === 0 && o === 0 && cr === 0 && cc === 0)) return null;
   return { i, o, cr, cc, model: msg.model };
 }
@@ -442,7 +375,6 @@ const PRICE = {
   sonnet: [3.0, 15.0, 0.3, 3.75],
   haiku: [1.0, 5.0, 0.1, 1.25],
   fable: [10.0, 50.0, 1.0, 12.5],
-  mythos: [10.0, 50.0, 1.0, 12.5],
 };
 const DEFAULT_PRICE_KEY = "opus";
 
@@ -552,7 +484,7 @@ function segment_transcript(p) {
 
 function _subagent_runs(sid) {
   const runs = [];
-  for (const p of globSync(path.join(PROJECTS_DIR, "*", sid, "**", "*.jsonl"))) {
+  for (const p of fs.globSync(`${PROJECTS_GLOB}/*/${sid}/**/*.jsonl`)) {
     const s = parse_transcript(p);
     runs.push({
       start: s.start_epoch, model: s.last_model,
@@ -597,7 +529,7 @@ function _build_priors(files) {
     }
   }
   let n_sessions = 0;
-  for (const p of (files || globSync(path.join(PROJECTS_DIR, "*", "*.jsonl")))) {
+  for (const p of (files || fs.globSync(`${PROJECTS_GLOB}/*/*.jsonl`))) {
     const sid = path.basename(p, ".jsonl");
     if (sid === ZERO_UUID) continue;
     const segs = segment_transcript(p);
@@ -691,21 +623,7 @@ function _build_priors(files) {
 }
 
 function round4(x) {
-  // Match Python round-half-to-even.
-  return roundHalfEven(x, 4);
-}
-
-function roundHalfEven(x, ndigits) {
-  if (!Number.isFinite(x)) return x;
-  const m = Math.pow(10, ndigits);
-  const scaled = x * m;
-  const floor = Math.floor(scaled);
-  const diff = scaled - floor;
-  let r;
-  if (diff > 0.5) r = floor + 1;
-  else if (diff < 0.5) r = floor;
-  else r = floor % 2 === 0 ? floor : floor + 1;
-  return r / m;
+  return Number.isFinite(x) ? Math.round(x * 1e4) / 1e4 : x;
 }
 
 function _print_priors(p) {
@@ -737,7 +655,7 @@ function cmd_priors() {
 // ---- estimate (pre-op cost lookup; no LLM) ----
 
 function _latest_context() {
-  const files = globSync(path.join(STATE_DIR, "*.json"));
+  const files = fs.globSync(`${STATE_GLOB}/*.json`);
   if (!files.length) return null;
   let newest = files[0];
   let newestM = getmtime(newest);
@@ -757,13 +675,13 @@ function _latest_context() {
   const cu = _dig(d, "context_window", "current_usage") || {};
   let tok = 0;
   for (const k of ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"]) {
-    tok += intOr0(cu[k]);
+    tok += _inum(cu[k]);
   }
   return { tokens: tok, model: _dig(d, "model", "id") || "" };
 }
 
 function _priors_stale(max_age_days = 7) {
-  const files = globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"));
+  const files = fs.globSync(`${PROJECTS_GLOB}/*/*.jsonl`);
   if (!isFile(PRIORS_JSON)) return { stale: true, files };
   const pj = getmtime(PRIORS_JSON);
   if (Date.now() / 1000 - pj > max_age_days * 86400) return { stale: true, files };
@@ -880,7 +798,7 @@ function cmd_record() {
     turns: t.turns,
     tool_calls: t.tool_calls,
     start_epoch: t.start_epoch ? Math.trunc(t.start_epoch) : "",
-    facets_json: jsonCompact(t.facets),
+    facets_json: JSON.stringify(t.facets),
   };
   _prepend_row(COLS.map((c) => (c in rowd ? rowd[c] : "")));
   if (state.raw !== null && state.raw !== undefined) _archive(sid, state.raw);
@@ -890,11 +808,6 @@ function cmd_record() {
     /* ignore */
   }
   process.exit(0);
-}
-
-// json.dumps(..., ensure_ascii=False, separators=(",", ":"))
-function jsonCompact(obj) {
-  return JSON.stringify(obj);
 }
 
 function _archive(sid, raw) {
@@ -933,7 +846,7 @@ function _prepend_row(row) {
 // snapshot (a session whose SessionEnd hook hasn't projected it yet) so its
 // cost/duration/lines/rate-limits/context land in the row. `excludeSid` (the
 // active session) is skipped entirely — its transcript is mid-flight.
-function _rebuild_stats_csv(excludeSid) {
+function _rebuild_stats_csv(excludeSid, files) {
   const existing = {};
   if (isFile(STATS_CSV)) {
     const text = fs.readFileSync(STATS_CSV, "utf-8");
@@ -953,7 +866,7 @@ function _rebuild_stats_csv(excludeSid) {
   const rows = [];
   const seen = new Set();
   let with_cost = 0;
-  for (const p of globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"))) {
+  for (const p of (files || fs.globSync(`${PROJECTS_GLOB}/*/*.jsonl`))) {
     const sid = path.basename(p, ".jsonl");
     if (sid === ZERO_UUID || sid === excludeSid) continue;
     seen.add(sid);
@@ -999,7 +912,7 @@ function _rebuild_stats_csv(excludeSid) {
       turns: t.turns,
       tool_calls: t.tool_calls,
       start_epoch: t.start_epoch ? Math.trunc(t.start_epoch) : "",
-      facets_json: jsonCompact(t.facets),
+      facets_json: JSON.stringify(t.facets),
     });
   }
   for (const [sid, ex] of Object.entries(existing)) {
@@ -1061,117 +974,54 @@ function _abbr(n) {
 // ---- report (HTML) ----
 
 export function _load_stats(csvPath = STATS_CSV) {
-  const days = {};
-  const months = {};
-  const per_model = {};
-  const totals = {
-    sessions: 0, cost: 0.0, in: 0, out: 0, cr: 0, cc: 0,
-    dur: 0, api: 0, la: 0, lr: 0, turns: 0, tools: 0,
-  };
-  const distinct_models = new Set();
+  // render() consumes only c.sessions (each with .facets); the client re-derives
+  // day/month/model aggregates from the embedded payload. totals.sessions + usage
+  // (tool/agent/skill tallies) are kept for the sibling improve.mjs roadmap.
   const sessions = [];
-  const usage = { tools: {}, tool_errors: 0, agents: {}, skills: {}, compactions: 0 };
-  const projects = {};
+  const usage = { tools: {}, agents: {}, skills: {} };
   const text = fs.readFileSync(csvPath, "utf-8");
   for (const row of dictReader(text)) {
     const ts = (row.timestamp || "").trim();
     if (ts === "timestamp" || (row.total_cost_usd || "").trim() === "total_cost_usd") continue;
-    const sid = (row.session_id || "").trim();
-    const cost = _fnum(row.total_cost_usd);
-    const model = (row.last_model || "").trim();
     const i = _inum(row.input_tokens);
     const o = _inum(row.output_tokens);
     const cr = _inum(row.cache_read_tokens);
     const cc = _inum(row.cache_creation_tokens);
-    const dur = _inum(row.duration_ms);
-    const api = _inum(row.api_duration_ms);
-    const la = _inum(row.lines_added);
-    const lr = _inum(row.lines_removed);
-    const r5 = _fnum(row.rl_5h_pct);
-    const r7 = _fnum(row.rl_7d_pct);
-    const turns = _inum(row.turns);
-    const tools = _inum(row.tool_calls);
-    const tok = i + o + cr + cc;
-    totals.sessions += 1;
-    for (const [kk, vv] of [
-      ["cost", cost], ["in", i], ["out", o], ["cr", cr], ["cc", cc],
-      ["dur", dur], ["api", api], ["la", la], ["lr", lr],
-      ["turns", turns], ["tools", tools],
-    ]) {
-      totals[kk] += vv;
-    }
-    if (model) {
-      distinct_models.add(model);
-      const m =
-        per_model[model] ||
-        (per_model[model] = { sessions: 0, cost: 0.0, tokens: 0, in: 0, out: 0, cr: 0, cc: 0 });
-      m.sessions += 1;
-      m.cost += cost;
-      m.tokens += tok;
-      m.in += i;
-      m.out += o;
-      m.cr += cr;
-      m.cc += cc;
-    }
-    for (const [key, bucket] of [[ts.slice(0, 10), days], [ts.slice(0, 7), months]]) {
-      if (!key) continue;
-      const d =
-        bucket[key] ||
-        (bucket[key] = {
-          sessions: 0, cost: 0.0, in: 0, out: 0, cr: 0, cc: 0,
-          models: new Set(), cost_by_model: {},
-        });
-      d.sessions += 1;
-      d.cost += cost;
-      d.in += i;
-      d.out += o;
-      d.cr += cr;
-      d.cc += cc;
-      if (model) d.models.add(model);
-      if (cost) {
-        const mk = model || "others";
-        d.cost_by_model[mk] = (d.cost_by_model[mk] || 0.0) + cost;
-      }
-    }
     const dt = parseDateTime(ts);
-    sessions.push({
-      ts, sid, cost, model, in: i, out: o, cr, cc, tok,
-      dur, api, la, lr, rl5: r5, rl7: r7, turns, tools,
-      hour: dt ? dt.getHours() : null,
-      dow: dt ? jsWeekdayPy(dt) : null,
-      facets: null,
-    });
+    let facets = null;
     const fj = row.facets_json;
     if (fj) {
-      let fc;
       try {
-        fc = JSON.parse(fj);
-      } catch {
-        fc = null;
-      }
-      sessions[sessions.length - 1].facets = fc;
-      if (fc) {
+        facets = JSON.parse(fj);
         for (const kk of ["tools", "agents", "skills"]) {
-          for (const [nm, n] of Object.entries(fc[kk] || {})) {
-            usage[kk][nm] = (usage[kk][nm] || 0) + n;
+          for (const [nm, cnt] of Object.entries(facets[kk] || {})) {
+            usage[kk][nm] = (usage[kk][nm] || 0) + cnt;
           }
         }
-        usage.tool_errors += _inum(fc.tool_errors);
-        usage.compactions += _inum(fc.compactions);
-        const proj = (fc.cwd || "").trim() || "unknown";
-        const pp = projects[proj] || (projects[proj] = { sessions: 0, cost: 0.0 });
-        pp.sessions += 1;
-        pp.cost += cost;
+      } catch {
+        facets = null;
       }
     }
+    sessions.push({
+      ts,
+      sid: (row.session_id || "").trim(),
+      cost: _fnum(row.total_cost_usd),
+      model: (row.last_model || "").trim(),
+      in: i, out: o, cr, cc, tok: i + o + cr + cc,
+      dur: _inum(row.duration_ms),
+      api: _inum(row.api_duration_ms),
+      la: _inum(row.lines_added),
+      lr: _inum(row.lines_removed),
+      rl5: _fnum(row.rl_5h_pct),
+      rl7: _fnum(row.rl_7d_pct),
+      turns: _inum(row.turns),
+      tools: _inum(row.tool_calls),
+      hour: dt ? dt.getHours() : null,
+      dow: dt ? jsWeekdayPy(dt) : null,
+      facets,
+    });
   }
-  // Sort by cost descending (Array.sort is stable since ES2019).
-  sessions.sort((a, b) => b.cost - a.cost);
-  return {
-    days, months, per_model, totals,
-    models: Array.from(distinct_models).sort(),
-    sessions, usage, projects,
-  };
+  return { sessions, totals: { sessions: sessions.length }, usage };
 }
 
 function parseDateTime(ts) {
@@ -1187,46 +1037,35 @@ function jsWeekdayPy(d) {
 }
 
 // ---- report freshness ----
-// Active session = newest-touched transcript or cost-state file within a live
-// window (statusline renders are frequent during active use). Cold shell after
-// session close → null, so a hook-missed session's lingering cost-state still
-// integrates. getmtime returns seconds.
-
-function _active_sid() {
+// Rebuild stats.csv before rendering if any non-active transcript or cost-state
+// file is newer than stats.csv (or it's missing). One scan of transcripts +
+// cost-state serves double duty: the newest-touched file within a live window is
+// the active session (statusline renders are frequent during active use), whose
+// mid-flight transcript is excluded so it never pollutes the report; a cold shell
+// after session close yields no active sid, so a hook-missed session's lingering
+// cost-state still integrates. getmtime returns seconds.
+function _ensure_fresh() {
   const WIN = 180;
   const now = Date.now() / 1000;
+  const jsonl = fs.globSync(`${PROJECTS_GLOB}/*/*.jsonl`);
+  const scan = [
+    ...jsonl.map((p) => [path.basename(p, ".jsonl"), getmtime(p)]),
+    ...fs.globSync(`${STATE_GLOB}/*.json`).map((p) => [path.basename(p, ".json"), getmtime(p)]),
+  ];
   let newest = 0, newestSid = null;
-  for (const p of globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"))) {
-    const m = getmtime(p);
-    if (m > newest) { newest = m; newestSid = path.basename(p, ".jsonl"); }
+  for (const [sid, m] of scan) {
+    if (m > newest) { newest = m; newestSid = sid; }
   }
-  for (const p of globSync(path.join(STATE_DIR, "*.json"))) {
-    const m = getmtime(p);
-    if (m > newest) { newest = m; newestSid = path.basename(p, ".json"); }
-  }
-  return newestSid && now - newest < WIN ? newestSid : null;
-}
-
-// Rebuild stats.csv before rendering if any non-excluded transcript or
-// cost-state file is newer than stats.csv (or stats.csv is missing). Excludes
-// the active session so a mid-flight transcript never pollutes the report.
-function _ensure_fresh() {
-  const active = _active_sid();
+  const active = newestSid && now - newest < WIN ? newestSid : null;
   const csvMtime = isFile(STATS_CSV) ? getmtime(STATS_CSV) : 0;
   let need = csvMtime === 0;
   if (!need) {
-    for (const p of globSync(path.join(PROJECTS_DIR, "*", "*.jsonl"))) {
-      if (path.basename(p, ".jsonl") === active) continue;
-      if (getmtime(p) > csvMtime) { need = true; break; }
-    }
-    if (!need) {
-      for (const p of globSync(path.join(STATE_DIR, "*.json"))) {
-        if (path.basename(p, ".json") === active) continue;
-        if (getmtime(p) > csvMtime) { need = true; break; }
-      }
+    for (const [sid, m] of scan) {
+      if (sid === active) continue;
+      if (m > csvMtime) { need = true; break; }
     }
   }
-  if (need) _rebuild_stats_csv(active);
+  if (need) _rebuild_stats_csv(active, jsonl);
 }
 
 function cmd_report() {
@@ -1287,18 +1126,14 @@ function _load_settings() {
   }
 }
 
-function _is_our_record_hook(cmd, stats_abs) {
+// Classify a SessionEnd command: "ours" invokes THIS stats.mjs with `record`,
+// "foreign" is some other stats.mjs record hook; null otherwise.
+function _record_hook_kind(cmd, stats_abs) {
+  if (!cmd.replace(/\s+$/, "").endsWith('" record')) return null;
   const forms = [stats_abs, stats_abs.replace(/\\/g, "/")];
-  return cmd.replace(/\s+$/, "").endsWith('" record') && forms.some((f) => cmd.includes(f));
-}
-
-function _is_foreign_record_hook(cmd, stats_abs) {
-  const forms = [stats_abs, stats_abs.replace(/\\/g, "/")];
-  return (
-    cmd.replace(/\s+$/, "").endsWith('" record') &&
-    cmd.includes("stats.mjs") &&
-    !forms.some((f) => cmd.includes(f))
-  );
+  if (forms.some((f) => cmd.includes(f))) return "ours";
+  if (cmd.includes("stats.mjs")) return "foreign";
+  return null;
 }
 
 function cmd_install(args) {
@@ -1318,8 +1153,8 @@ function cmd_install(args) {
       if (h.type === "command") existing.push(h.command || "");
     }
   }
-  const already = existing.some((c) => _is_our_record_hook(c, stats_abs));
-  const foreign = existing.filter((c) => _is_foreign_record_hook(c, stats_abs));
+  const already = existing.some((c) => _record_hook_kind(c, stats_abs) === "ours");
+  const foreign = existing.filter((c) => _record_hook_kind(c, stats_abs) === "foreign");
 
   print("=== claude-code-usage-report install ===");
   print(`platform: ${process.platform}   interpreter: node`);
@@ -1372,7 +1207,7 @@ function cmd_install(args) {
         .map((block) => ({
           hooks: (block.hooks || []).filter(
             (h) =>
-              !(h.type === "command" && _is_foreign_record_hook(h.command || "", stats_abs))
+              !(h.type === "command" && _record_hook_kind(h.command || "", stats_abs) === "foreign")
           ),
         }));
     }
