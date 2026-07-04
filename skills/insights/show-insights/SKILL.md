@@ -5,7 +5,7 @@ description: Generates interactive HTML report of Claude Code session cost, toke
 
 # show-insights
 
-Interactive HTML "Claude Code Insights" report — session cost, token usage, efficiency, usage patterns — read from `~/.agents/.show-insights/state/stats.csv`. Self-contained HTML, no external libs, persisted at `~/.agents/.show-insights/reports/report-<timestamp>.html` (mode 0600). Day/Month toggle. Full column list lives in `stats.mjs`; trailing statusline-fed columns are forward-only (0/blank for older rows), duration/turns/tool_calls backfill from transcripts.
+Interactive HTML "Claude Code Insights" report — session cost, token usage, efficiency, usage patterns — read from `~/.agents/.show-insights/state/stats.csv`. Self-contained HTML, no external libs, persisted at `~/.agents/.show-insights/reports/report-<timestamp>.html` (mode 0600 on POSIX; a no-op on Windows/NTFS). Day/Month toggle. Full column list lives in `stats.mjs`; trailing statusline-fed columns are forward-only (0/blank for older rows), duration/turns/tool_calls backfill from transcripts.
 
 `SKILL_DIR` = this skill's directory. Runs via `node` (ships with Claude Code, on PATH). Fresh machine: install first — `node <SKILL_DIR>/scripts/stats.mjs install` (writes SessionEnd hook + creates dirs; see INSTALL.md).
 

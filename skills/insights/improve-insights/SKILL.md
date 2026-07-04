@@ -31,7 +31,7 @@ Companion to `show-insights` (single responsibility: that skill *collects*/*visu
    - new transcript metric → extend `parse_transcript` + `_merge_facets` (retroactive via backfill).
    - new statusline field → `_extract_state` + the user's statusline (forward-only; reference at `show-insights/scripts/statusline.mjs`).
    - new column → `HEADER`/`COLS` + both row builders.
-   - new chart/stat → add a `svg*`/`*Bars`/`barChart`/aggregator + wire into the client-side `render()`.
+   - new chart/stat → add a `svg*`/`*Bars`/`barChart`/aggregator in `sources/app.js` + wire into its client-side `render()`; add the section shell + any new embedded field in `render.mjs`.
    - update the roadmap catalog in `improve.mjs` so the item flips to "done"/drops off.
 5. Verify end-to-end (back up `stats.csv` first):
    - `cp ~/.agents/.show-insights/state/stats.csv <scratch>/stats.csv.bak`

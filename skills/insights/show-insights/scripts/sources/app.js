@@ -5,7 +5,6 @@ const CFG = {
   LINE_COV: 0.05,
   PRESETS: [{id:"7d",label:"last 7 days",days:7},{id:"30d",label:"last 30 days",days:30},{id:"all",label:"all time"}]
 };
-'use strict';
 // ---- fmt helpers ----
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function escAttr(s){return esc(s).replace(/'/g,'&#39;').replace(/"/g,'&#34;');}
@@ -16,7 +15,6 @@ function fmtAbbr(n){n=+n||0;var u=[['b',1e9],['m',1e6],['k',1e3]];for(var i=0;i<
 function pad2(n){return String(n).padStart(2,'0');}
 function el(id){return document.getElementById(id);}
 function isDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);}
-function jsWeekday(d){return (d.getDay()+6)%7;}  // Mon=0..Sun=6
 function addDays(iso,n){var y=+iso.slice(0,4),m=+iso.slice(5,7),d=+iso.slice(8,10);var dt=new Date(y,m-1,d+n);return dt.getFullYear()+'-'+pad2(dt.getMonth()+1)+'-'+pad2(dt.getDate());}
 
 // ---- derived-stats math (client-side, embedded in the report) ----
@@ -183,7 +181,6 @@ function donutHtml(data,centerVal,centerSub){
   var legend='';data.forEach(function(x){if(x.v<=0)return;legend+="<div class='li'><i style='background:"+x.c+"'></i><b>"+esc(x.k)+"</b><span class='pc'>"+(x.v/total*100).toFixed(0)+"%</span></div>";});
   return "<div class='donut-wrap'><div class='donut'><svg viewBox='0 0 200 200' width='176' style='max-width:100%'>"+segs+center+"</svg></div><div class='donut-legend'>"+legend+"</div></div>";
 }
-function statline(items){var cells='';items.forEach(function(it){cells+="<div class='s'><div class='v'>"+esc(it[1])+"</div><div class='k'>"+esc(it[0])+"</div></div>";});return "<div class='statline'>"+cells+"</div>";}
 // callout/note row (design-system: Callouts & notes > Note variants) — bold figure + label
 function noteRow(cls,iconPaths,v,k,tip){return "<div class='note"+(cls?' '+cls:'')+"'"+(tip?" title='"+escAttr(tip)+"'":"")+"><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'>"+iconPaths+"</svg><div class='txt'><b>"+esc(v)+"</b> "+esc(k)+"</div></div>";}
 // efficiency rate readout — big figure with a clay slash-unit (the ratio operator) + caption
@@ -444,15 +441,14 @@ function initControls(range){
 
 // ---- model-filter (breakdown bars only) ----
 var CHART={},ACTIVE=new Set();
-function _fmt(v){return '$'+v.toFixed(2);}
 function _vis(){return ACTIVE.size?ACTIVE:new Set(CHART.models);}
 function _chart(target,data){
   var vis=_vis(),keys=Object.keys(data).sort().reverse(),totals={},mx=0;
   keys.forEach(function(k){var t=0;Object.keys(data[k]).forEach(function(m){if(vis.has(m))t+=data[k][m];});totals[k]=t;if(t>mx)mx=t;});
   mx=mx||1;var h='',any=false;
   keys.forEach(function(k){var t=totals[k];if(t<=0)return;any=true;var segs='';
-    CHART.models.forEach(function(m){if(!vis.has(m))return;var c=data[k][m]||0;if(c<=0)return;segs+='<div class="seg" style="width:'+(c/mx*100).toFixed(4)+'%;background:'+CHART.colors[m]+'" data-tip="'+escAttr(m+' · '+_fmt(c))+'"></div>';});
-    h+='<div class="bar-row"><div class="bar-label">'+esc(k)+'</div><div class="sbar-track">'+segs+'</div><div class="bar-val">'+_fmt(t)+'</div></div>';
+    CHART.models.forEach(function(m){if(!vis.has(m))return;var c=data[k][m]||0;if(c<=0)return;segs+='<div class="seg" style="width:'+(c/mx*100).toFixed(4)+'%;background:'+CHART.colors[m]+'" data-tip="'+escAttr(m+' · '+fmtMoney(c))+'"></div>';});
+    h+='<div class="bar-row"><div class="bar-label">'+esc(k)+'</div><div class="sbar-track">'+segs+'</div><div class="bar-val">'+fmtMoney(t)+'</div></div>';
   });
   target.innerHTML=any?h:'<p class="muted">No data for selected models.</p>';
 }

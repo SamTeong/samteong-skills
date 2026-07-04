@@ -10,7 +10,9 @@ import { render } from "./render.mjs";
 const HOME = os.homedir();
 const CLAUDE_DIR = path.join(HOME, ".claude");
 const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects");
-const SKILL_STATE_DIR = path.join(HOME, ".agents", ".show-insights", "state");
+// State root; SHOW_INSIGHTS_STATE overrides it (must match statusline.mjs, which
+// honors the same env var — otherwise capture writes and record/report reads split).
+const SKILL_STATE_DIR = process.env.SHOW_INSIGHTS_STATE || path.join(HOME, ".agents", ".show-insights", "state");
 const STATE_DIR = path.join(SKILL_STATE_DIR, "cost-state");
 export const STATS_CSV = path.join(SKILL_STATE_DIR, "stats.csv");
 const SESSIONS_JSONL = path.join(SKILL_STATE_DIR, "sessions.jsonl");
@@ -711,19 +713,19 @@ function _print_priors(p) {
   print(`priors -> ${PRIORS_JSON}`);
   print(`sessions=${p.n_sessions} ops=${p.n_ops} cost-calibrated=${p.n_ops_cost_calibrated}`);
   print(
-    padR("category", 14) + padL("n", 6) + padL("$ p50", 9) +
-      padL("$ p90", 9) + padL("out p50", 9) + padL("turns", 7)
+    "category".padEnd(14) + "n".padStart(6) + "$ p50".padStart(9) +
+      "$ p90".padStart(9) + "out p50".padStart(9) + "turns".padStart(7)
   );
   const cats = Object.keys(cs).sort((a, b) => cs[b].cost.p50 - cs[a].cost.p50);
   for (const cat of cats) {
     const d = cs[cat];
     print(
-      padR(cat, 14) +
-        padL(String(d.n), 6) +
-        padL(fixed(d.cost.p50, 4), 9) +
-        padL(fixed(d.cost.p90, 4), 9) +
-        padL(String(Math.trunc(d.out_tok.p50)), 9) +
-        padL(fixed(d.api_turns.p50, 1), 7)
+      cat.padEnd(14) +
+        String(d.n).padStart(6) +
+        fixed(d.cost.p50, 4).padStart(9) +
+        fixed(d.cost.p90, 4).padStart(9) +
+        String(Math.trunc(d.out_tok.p50)).padStart(9) +
+        fixed(d.api_turns.p50, 1).padStart(7)
     );
   }
 }
@@ -1007,8 +1009,8 @@ function _rebuild_stats_csv(excludeSid) {
     for (const c of COLS) r[c] = ex[c] || "";
     rows.push(r);
   }
-  // Python sorts by timestamp string, reverse=True, stable sort.
-  stableSort(rows, (a, b) => {
+  // Sort by timestamp string descending (Array.sort is stable since ES2019).
+  rows.sort((a, b) => {
     const av = a.timestamp || "";
     const bv = b.timestamp || "";
     return av < bv ? 1 : av > bv ? -1 : 0;
@@ -1023,15 +1025,6 @@ function _rebuild_stats_csv(excludeSid) {
 
 function cmd_backfill() {
   print(JSON.stringify(_rebuild_stats_csv(null)));
-}
-
-function stableSort(arr, cmp) {
-  const indexed = arr.map((v, i) => [v, i]);
-  indexed.sort((a, b) => {
-    const c = cmp(a[0], b[0]);
-    return c !== 0 ? c : a[1] - b[1];
-  });
-  for (let i = 0; i < arr.length; i++) arr[i] = indexed[i][0];
 }
 
 // ---- report: numeric helpers ----
@@ -1172,8 +1165,8 @@ export function _load_stats(csvPath = STATS_CSV) {
       }
     }
   }
-  // sessions.sort(key=lambda s: s["cost"], reverse=True) — Python stable sort.
-  stableSort(sessions, (a, b) => b.cost - a.cost);
+  // Sort by cost descending (Array.sort is stable since ES2019).
+  sessions.sort((a, b) => b.cost - a.cost);
   return {
     days, months, per_model, totals,
     models: Array.from(distinct_models).sort(),
@@ -1246,12 +1239,7 @@ function cmd_report() {
   const html_doc = render(c);
   fs.mkdirSync(REPORTS_DIR, { recursive: true });
   const out = path.join(REPORTS_DIR, `report-${reportStamp(new Date())}.html`);
-  fs.writeFileSync(out, html_doc, "utf-8");
-  try {
-    fs.chmodSync(out, 0o600);
-  } catch {
-    /* ignore */
-  }
+  fs.writeFileSync(out, html_doc, { encoding: "utf-8", mode: 0o600 });
   print(String(out));
   _open_report(out);
 }
@@ -1264,20 +1252,20 @@ function reportStamp(d) {
 }
 
 function _open_report(p) {
+  // execFileSync (array args, no shell) so a path containing shell/cmd
+  // metacharacters — e.g. a Windows username with `&` — can't be reinterpreted.
+  // On win32 the default browser is opened via rundll32's FileProtocolHandler
+  // rather than `cmd /c start`, which does not follow Node's arg quoting.
   try {
     const name = process.env.INSIGHTS_BROWSER;
-    let cmd, cmdArgs;
     if (process.platform === "win32") {
-      cmd = "cmd";
-      cmdArgs = name ? ["/c", "start", "", name, p] : ["/c", "start", "", p];
+      if (name) execFileSync(name, [p], { stdio: "ignore" });
+      else execFileSync("rundll32", ["url.dll,FileProtocolHandler", p], { stdio: "ignore" });
     } else if (process.platform === "darwin") {
-      cmd = "open";
-      cmdArgs = name ? ["-a", name, p] : [p];
+      execFileSync("open", name ? ["-a", name, p] : [p], { stdio: "ignore" });
     } else {
-      cmd = name || "xdg-open";
-      cmdArgs = [p];
+      execFileSync(name || "xdg-open", [p], { stdio: "ignore" });
     }
-    execFileSync(cmd, cmdArgs, { stdio: "ignore" });
   } catch {
     /* best-effort */
   }
@@ -1437,16 +1425,6 @@ function print(s) {
 
 function printErr(s) {
   process.stderr.write(s + "\n");
-}
-
-function padR(s, w) {
-  s = String(s);
-  return s.length >= w ? s : s + " ".repeat(w - s.length);
-}
-
-function padL(s, w) {
-  s = String(s);
-  return s.length >= w ? s : " ".repeat(w - s.length) + s;
 }
 
 function fixed(n, d) {

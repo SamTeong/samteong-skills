@@ -102,7 +102,7 @@ await page.goto(REPORT, { waitUntil: "networkidle" });
 // solid --paper base. On a full-height capture viewport the glow gradient would
 // stretch and cool the deeper sections, giving each screenshot a different tint.
 await page.addStyleTag({
-  content: ".topbar,.jump-nav{display:none!important} #glow,body::before{display:none!important}",
+  content: ".topbar,.secnav{display:none!important} #glow,body::before{display:none!important}",
 });
 await page.waitForTimeout(1800); // let charts + reveal animations settle
 // Grow the viewport to the full document height so clip regions past the first
