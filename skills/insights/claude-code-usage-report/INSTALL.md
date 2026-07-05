@@ -35,7 +35,7 @@ node <SKILL_DIR>/scripts/stats.mjs report
 
 `report` refreshes stats.csv from all transcripts + any lingering cost-state snapshots (excluding the active session) before rendering — no manual backfill needed. Use `backfill` only as a manual escape hatch (e.g. after migration; run while no session is active).
 
-Report opens in your OS default browser (`INSIGHTS_BROWSER=firefox|chrome|...` to override). Path: `~/.agents/.claude-code-usage-report/reports/report-<timestamp>.html`.
+Report opens in your OS default browser (`USAGE_REPORT_BROWSER=firefox|chrome|...` to override). Path: `~/.agents/.claude-code-usage-report/reports/report-<timestamp>.html`.
 
 ## Uninstall
 

@@ -14,7 +14,7 @@ Interactive HTML "Claude Code Usage Report" — session cost, token usage, effic
 ## Steps
 
 1. Render: `node <SKILL_DIR>/scripts/stats.mjs report`. The command first refreshes stats.csv from all transcripts + any lingering cost-state snapshots (excluding the active session), then renders — no manual backfill needed. The mid-flight active session is skipped (its transcript/cost-state are incomplete); everything else is brought current.
-2. Script writes the report, prints its absolute path, and auto-opens it in the OS default browser (`INSIGHTS_BROWSER=firefox|chrome|...` to override). If browser launch fails, the path is still printed — open manually.
+2. Script writes the report, prints its absolute path, and auto-opens it in the OS default browser (`USAGE_REPORT_BROWSER=firefox|chrome|...` to override). If browser launch fails, the path is still printed — open manually.
 3. Manual `backfill` rebuilds from all transcripts unconditionally — escape hatch for after migration or a corrupted stats.csv. Run while no Claude Code session is active.
 
 ### Pre-op cost estimate
