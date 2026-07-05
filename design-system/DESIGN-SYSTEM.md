@@ -4,9 +4,9 @@ A living style guide for the Insights report, in the "paper-and-clay" visual lan
 The runnable reference is [`design-system.html`](design-system.html) — open it and toggle the
 theme (top-right) to see every token and component in both light and dark modes.
 
-> **Source of truth:** tokens and existing components are lifted verbatim from
-> [`original.html`](original.html). New components are designed to match it — they do **not**
-> copy `original-report.html`, which was used only to spot which components were missing.
+> **Source of truth:** the runnable reference above (`design-system.html`) consolidates every
+> token and component. Tokens and the carried-over components were lifted verbatim from the
+> original Insights report; net-new components are designed to match it.
 
 ---
 
@@ -15,7 +15,7 @@ theme (top-right) to see every token and component in both light and dark modes.
 ### Summary
 **Components reviewed:** 21 · **Net-new added:** 12 · **Hardcoded values found:** low (tokenized) · **Score:** 88/100
 
-`original.html` is already token-driven and internally consistent — a strong base. The gaps were
+The original report is already token-driven and internally consistent — a strong base. The gaps were
 coverage, not quality: no part-to-whole chart, no long-form text container, and no interactive
 primitives (buttons, tabs, chips) for sections that need them.
 
@@ -472,7 +472,7 @@ top of the column without opening dead space above the headline.
 
 ## Component inventory
 
-**Carried over from `original.html`:** topbar, segmented control, status pill, icon button,
+**Carried over from the original report:** topbar, segmented control, status pill, icon button,
 hero/terminal, big-number flagcard, delta badge, stat card + sparkline, area chart, radial gauge,
 stacked token bar + legend, horizontal bar-list, activity heatmap, data table, roadmap status
 cards, footer.

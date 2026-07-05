@@ -16,7 +16,8 @@ const SKILL_STATE_DIR = process.env.USAGE_REPORT_STATE || path.join(HOME, ".agen
 const STATE_DIR = path.join(SKILL_STATE_DIR, "cost-state");
 export const STATS_CSV = path.join(SKILL_STATE_DIR, "stats.csv");
 const SESSIONS_JSONL = path.join(SKILL_STATE_DIR, "sessions.jsonl");
-const REPORTS_DIR = path.join(HOME, ".agents", ".claude-code-usage-report", "reports");
+// Reports sit beside the state dir, so USAGE_REPORT_STATE relocates them too.
+const REPORTS_DIR = path.join(path.dirname(SKILL_STATE_DIR), "reports");
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.dirname(SCRIPT_DIR);
 const SCRIPT = fileURLToPath(import.meta.url);
@@ -1115,7 +1116,7 @@ function _open_report(p) {
   // On win32 the default browser is opened via rundll32's FileProtocolHandler
   // rather than `cmd /c start`, which does not follow Node's arg quoting.
   try {
-    const name = process.env.INSIGHTS_BROWSER;
+    const name = process.env.USAGE_REPORT_BROWSER;
     if (process.platform === "win32") {
       if (name) execFileSync(name, [p], { stdio: "ignore" });
       else execFileSync("rundll32", ["url.dll,FileProtocolHandler", p], { stdio: "ignore" });

@@ -10,7 +10,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const HOME = os.homedir();
 const CLAUDE_DIR = path.join(HOME, ".claude");
 const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects");
-const SKILL_STATE_DIR = path.join(HOME, ".agents", ".claude-code-usage-report", "state");
+// Forward-slash base for fs.globSync (a backslash is a glob escape on Windows).
+const PROJECTS_GLOB = PROJECTS_DIR.replace(/\\/g, "/");
+// State root; USAGE_REPORT_STATE overrides it (must match stats.mjs/statusline.mjs).
+const SKILL_STATE_DIR = process.env.USAGE_REPORT_STATE || path.join(HOME, ".agents", ".claude-code-usage-report", "state");
 const SESSIONS_JSONL = path.join(SKILL_STATE_DIR, "sessions.jsonl");
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.dirname(SCRIPT_DIR);
@@ -69,7 +72,7 @@ function _data_inventory() {
     }
   }
   return {
-    transcripts: fs.globSync(`${PROJECTS_DIR}/*/*.jsonl`).length,
+    transcripts: fs.globSync(`${PROJECTS_GLOB}/*/*.jsonl`).length,
     history: isFile(path.join(CLAUDE_DIR, "history.jsonl")),
     tasks: countDir(path.join(CLAUDE_DIR, "tasks")),
     file_history: countDir(path.join(CLAUDE_DIR, "file-history")),
