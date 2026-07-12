@@ -216,10 +216,21 @@ function svgRateTrend(sessions){
   var axes="<line class='axis' x1='"+P+"' y1='"+(H-P)+"' x2='"+(W-P)+"' y2='"+(H-P)+"'/>"+
           "<line class='axis' x1='"+P+"' y1='"+P+"' x2='"+P+"' y2='"+(H-P)+"'/>";
   var yticks=[0,25,50,75,100].map(function(v){return "<text x='"+(P-6)+"' y='"+(fy(v)+4).toFixed(1)+"' text-anchor='end' fill='var(--ink-faint)'>"+v+"%</text>";}).join('');
-  var x0=esc(rl[0].ts.slice(5,10)),xn=esc(rl[n-1].ts.slice(5,10));
-  var xlabels="<text x='"+P+"' y='"+(H-P+16)+"' fill='var(--ink-faint)'>"+x0+"</text>"+
-             "<text x='"+(W-P)+"' y='"+(H-P+16)+"' text-anchor='end' fill='var(--ink-faint)'>"+xn+"</text>"+
-             "<text x='"+(W-P)+"' y='"+(P-10)+"' text-anchor='end' fill='var(--ink-faint)'>% used →</text>";
+  // x-axis: label distinct calendar days at intervals — one label per day at the
+  // x of its first rate-limit session, strided to cap ~12 labels so they don't
+  // overlap. first day anchors start (flush to left axis), last anchors end.
+  var dayFirst={},dayOrder=[];
+  rl.forEach(function(s2,i){var d=s2.ts.slice(0,10);if(!(d in dayFirst)){dayFirst[d]=i;dayOrder.push(d);}});
+  var MAXLBL=12,stride=Math.ceil(dayOrder.length/MAXLBL);
+  var xlabels='';
+  for(var di=0;di<dayOrder.length;di+=stride){
+    if(di===dayOrder.length-1)continue; // last rendered below with end anchor
+    var xi=fx(dayFirst[dayOrder[di]]);
+    xlabels+="<text x='"+xi.toFixed(1)+"' y='"+(H-P+16)+"' text-anchor='"+(di===0?'start':'middle')+"' fill='var(--ink-faint)'>"+esc(dayOrder[di].slice(5,10))+"</text>";
+  }
+  var lastDi=dayOrder.length-1,lxi=fx(dayFirst[dayOrder[lastDi]]);
+  xlabels+="<text x='"+lxi.toFixed(1)+"' y='"+(H-P+16)+"' text-anchor='"+(dayOrder.length>1?'end':'start')+"' fill='var(--ink-faint)'>"+esc(dayOrder[lastDi].slice(5,10))+"</text>";
+  xlabels+="<text x='"+(W-P)+"' y='"+(P-10)+"' text-anchor='end' fill='var(--ink-faint)'>% used →</text>";
   // weekend bands: group rate-limit sessions by calendar date (dow 5=Sat, 6=Sun),
   // map each date's index range to a rect behind the lines. x-edges align to the
   // midpoint between adjacent points so bands don't overlap neighboring weekdays.
@@ -233,8 +244,16 @@ function svgRateTrend(sessions){
     if(x2<=x1)return;
     wknd+="<rect x='"+x1.toFixed(1)+"' y='"+P+"' width='"+(x2-x1).toFixed(1)+"' height='"+(H-2*P)+"' fill='var(--weekend)' fill-opacity='0.5'/>";
   });
+  // datapoint hit-areas: one circle per line per session, each carrying a native
+  // <title> tooltip (date + both window values) — same pattern as svgScatter.
+  var dots='';
+  rl.forEach(function(s2,i){
+    var x=fx(i),tip=esc(s2.ts.slice(0,10)+' · 5h '+s2.r5.toFixed(1)+'% · 7d '+s2.r7.toFixed(1)+'%');
+    dots+="<circle cx='"+x.toFixed(1)+"' cy='"+fy(s2.r5).toFixed(1)+"' r='3' fill='#4E9E7B' opacity='0.85'><title>"+tip+"</title></circle>";
+    dots+="<circle cx='"+x.toFixed(1)+"' cy='"+fy(s2.r7).toFixed(1)+"' r='3' fill='var(--ac)' opacity='0.85'><title>"+tip+"</title></circle>";
+  });
   var leg="<div class='legend' style='margin:6px 0'><span class='lg-item'><span class='lg-swatch' style='background:#4E9E7B'></span>5h window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--ac)'></span>7d window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--weekend);opacity:.5'></span>weekend</span></div>";
-  return leg+svgWrap(W,H,axes+ceiling+th80+yticks+xlabels+wknd+d5+d7,'chart');
+  return leg+svgWrap(W,H,axes+ceiling+th80+yticks+xlabels+wknd+d5+d7+dots,'chart');
 }
 function renderRateLimits(sessions){
   var rl=sessions.filter(function(s){return s.r5>0||s.r7>0;});

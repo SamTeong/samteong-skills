@@ -29,6 +29,19 @@ const HEADER = "timestamp,session_id,total_cost_usd,last_model,input_tokens,outp
 const COLS = HEADER.split(",");
 const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
 
+// Built-in Claude Code CLI slash commands (NOT skills). A user-typed slash
+// command whose name is in this set is not counted as a skill invocation.
+// Everything else in a <command-name>/NAME</command-name> tag is treated as a
+// skill (including plugin-namespaced names like "caveman:caveman" and retired
+// skills no longer installed). Extend this set if a new CLI built-in leaks in.
+const BUILTIN_CLI_COMMANDS = new Set([
+  "add-dir", "agents", "bug", "clear", "compact", "config", "context", "copy",
+  "cost", "dev", "doctor", "effort", "exit", "export", "fast", "get-started",
+  "help", "hooks", "init", "login", "mcp", "memory", "model", "models",
+  "permissions", "plugin", "plugins", "PR", "resume", "shortcuts", "status",
+  "statusline", "terminal-setup", "voice", "workflows",
+]);
+
 // ---- fs helpers ----
 
 function isFile(p) {
@@ -277,6 +290,29 @@ function _new_facets() {
   return { tools: {}, tool_errors: 0, agents: {}, skills: {}, compactions: 0, cwd: "", branch: "" };
 }
 
+// Extract skill names from user-typed slash commands in a user message body.
+// Slash invocations appear as <command-name>/NAME</command-name> text injected
+// by the harness; built-in CLI commands are filtered out. Returns one skill
+// name per tag (a single slash invocation emits exactly one tag).
+function _skill_slash_invocations(content) {
+  if (!content) return [];
+  const texts = typeof content === "string"
+    ? [content]
+    : Array.isArray(content)
+      ? content.filter((b) => b && typeof b === "object" && typeof b.text === "string").map((b) => b.text)
+      : [];
+  const out = [];
+  for (const t of texts) {
+    const re = /<command-name>\/([a-zA-Z0-9][a-zA-Z0-9:_-]*)<\/command-name>/g;
+    let m;
+    while ((m = re.exec(t)) !== null) {
+      const nm = m[1];
+      if (!BUILTIN_CLI_COMMANDS.has(nm)) out.push(nm);
+    }
+  }
+  return out;
+}
+
 function parse_transcript(p) {
   const r = {
     last_model: "",
@@ -316,6 +352,9 @@ function parse_transcript(p) {
             fc.tool_errors += 1;
           }
         }
+      }
+      for (const nm of _skill_slash_invocations(c)) {
+        fc.skills[nm] = (fc.skills[nm] || 0) + 1;
       }
       continue;
     }
