@@ -1,38 +1,50 @@
+/* zapac identity — Zühlke purple→cyan glass-over-gradient. Tokens map onto the
+   pre-existing var names so downstream CSS re-skins without selector edits.
+   --clay = brand purple (UI accent); --sage/--amber/--azure/--red = semantic
+   status (ok/warn/info/danger). Gradient reserved for identity surfaces. */
 :root{
-  --paper:#F4F0E7; --paper-2:#EBE4D6; --paper-3:#E2DAC9;
-  --bg:var(--paper); --surface:#FFFDF8; --surface-2:#EFE9DC;
-  --ink:#26211B; --ink-soft:#6E6558; --ink-faint:#9C9384;
-  --line:#DED6C6; --line-soft:#E8E1D3;
+  --paper:#ebe7f5; --paper-2:#f3f0fb; --paper-3:#e4dcf2;
+  --bg:var(--paper); --surface:rgba(255,255,255,.66); --surface-2:rgba(255,255,255,.42);
+  --ink:#181320; --ink-soft:#524b62; --ink-faint:#625a78;
+  --line:rgba(152,91,156,.20); --line-soft:rgba(152,91,156,.11);
   --weekend:color-mix(in srgb,var(--ink-faint) 16%,var(--paper));
-  --clay:#D97757; --clay-deep:#C15F3C; --amber:#E0A03C; --sage:#4E9E7B; --azure:#5484B0; --red:#C6553F;
-  --ac:var(--clay-deep);
+  --clay:#985b9c; --clay-deep:#834f88; --amber:#f2a33c; --sage:#088043; --azure:#007299; --red:#b00020;
+  --ok:var(--sage); --info:var(--azure); --warn:var(--amber); --danger:var(--red); --pos:var(--sage); --neg:var(--red);
+  --ac:var(--clay);
+  --cyan:#00a5e6;
+  --grad-brand:linear-gradient(45deg,#aa41af 5%,#3c69c8 60%,#00a5e6 100%);
+  --grad-pane:linear-gradient(150deg,#b445b9 0%,#8a41c0 34%,#3c69c8 100%);
+  --glass-chip:rgba(152,91,156,.13);
   --head-bg:transparent; --head-ink:var(--ink); --head-soft:var(--ink-soft);
-  --card:rgba(255,253,248,0.66); --card-2:rgba(255,253,248,0.82); --card-brd:rgba(255,255,255,0.72);
-  --card-shadow:0 1px 0 rgba(255,255,255,0.6) inset, 0 18px 40px -24px rgba(60,44,30,0.35), 0 2px 6px -2px rgba(60,44,30,0.12);
-  --glow-a:rgba(217,119,87,0.20); --glow-b:rgba(224,160,60,0.18); --glow-c:rgba(84,132,176,0.12);
+  --card:rgba(255,255,255,.66); --card-2:rgba(255,255,255,.82); --card-brd:rgba(152,91,156,.20);
+  --card-shadow:0 18px 50px -24px rgba(90,45,120,.40), 0 2px 8px -4px rgba(90,45,120,.20);
+  --glow-a:rgba(170,65,175,.20); --glow-b:rgba(60,105,200,.16); --glow-c:rgba(0,165,230,.14);
   --grain:0.03;
-  --pos:var(--sage); --neg:var(--red);
-  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  --disp:'Bricolage Grotesque',system-ui,sans-serif;
-  --body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --disp:'Lato',system-ui,sans-serif;
+  --body:'Lato',system-ui,-apple-system,sans-serif;
   --sans:var(--body);
   /* spacing scale */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:22px; --s6:32px; --s7:48px;
   --ctl-h:34px; /* shared height for header filter pills + segmented toggle */
-  /* radius scale */
-  --r-sm:7px; --r-md:12px; --r-lg:16px; --r-xl:22px; --r-pill:999px;
+  /* radius scale — zapac radii 12/18/26/34/999 */
+  --r-sm:12px; --r-md:18px; --r-lg:26px; --r-xl:34px; --r-pill:999px;
 }
 :root[data-theme="dark"]{
-  --paper:#141210; --paper-2:#1B1712; --paper-3:#221C15;
-  --surface:#201B15; --surface-2:#282218;
-  --ink:#EFE8D9; --ink-soft:#A79C8A; --ink-faint:#6F6656;
-  --line:#2E2820; --line-soft:#251F19;
+  --paper:#0b0813; --paper-2:#120c1f; --paper-3:#181226;
+  --surface:rgba(30,22,52,.55); --surface-2:rgba(255,255,255,.03);
+  --ink:#f3f0ff; --ink-soft:#b6afd4; --ink-faint:#948dae;
+  --line:rgba(160,130,255,.16); --line-soft:rgba(160,130,255,.08);
   --weekend:color-mix(in srgb,var(--ink-faint) 22%,var(--paper));
-  --clay:#E58B60; --clay-deep:#E0714C; --amber:#EEB65E; --sage:#5FC49A; --azure:#78ABDC; --red:#E27A63;
+  --clay:#cba3ea; --clay-deep:#a982d6; --amber:#f2a33c; --sage:#2ec76f; --azure:#33b5e0; --red:#b00020;
+  --ok:var(--sage); --info:var(--azure); --warn:var(--amber); --danger:var(--red); --pos:var(--sage); --neg:var(--red);
   --ac:var(--clay);
-  --card:rgba(28,23,18,0.55); --card-2:rgba(33,27,21,0.78); --card-brd:rgba(255,255,255,0.07);
-  --card-shadow:0 1px 0 rgba(255,255,255,0.04) inset, 0 24px 50px -28px rgba(0,0,0,0.7), 0 2px 6px -2px rgba(0,0,0,0.4);
-  --glow-a:rgba(224,113,76,0.30); --glow-b:rgba(238,182,94,0.16); --glow-c:rgba(120,171,220,0.12);
+  --cyan:#33b5e0;
+  --grad-pane:linear-gradient(150deg,#711f7d 0%,#4c2c8c 38%,#1c3a75 100%);
+  --glass-chip:rgba(160,130,255,.14);
+  --card:rgba(30,22,52,.55); --card-2:rgba(30,22,52,.78); --card-brd:rgba(160,130,255,.16);
+  --card-shadow:0 24px 60px -28px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.04);
+  --glow-a:rgba(170,65,175,.30); --glow-b:rgba(60,105,200,.20); --glow-c:rgba(0,165,230,.18);
   --grain:0.05;
 }
 *{box-sizing:border-box}
@@ -361,4 +373,16 @@ footer code{background:color-mix(in srgb,var(--paper-2) 70%,transparent);padding
 /* .range-preset chrome is provided by the shared .fpill rule near the top */
 .range-bar input[type=date]{font-family:var(--mono);font-size:12px;color:var(--ink);background:color-mix(in srgb,var(--paper-2) 60%,transparent);border:1px solid var(--line);border-radius:8px;padding:4px 8px}
 .range-bar .sep{color:var(--ink-faint);padding:0 2px}
+/* ---------- zapac data-viz: trend chip, swatch legend, empty state ---------- */
+.trend-chip{display:inline-flex;align-items:center;gap:3px;font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--r-pill);letter-spacing:.01em;vertical-align:middle}
+.trend-chip[data-dir="up"]{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.trend-chip[data-dir="down"]{color:var(--danger);background:color-mix(in srgb,var(--danger) 14%,transparent)}
+.trend-chip[data-dir="flat"]{color:var(--ink-faint);background:var(--glass-chip)}
+.swatch-legend{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:11.5px;color:var(--ink-soft)}
+.swatch-legend .li{display:inline-flex;align-items:center;gap:7px}
+.swatch-legend .sw{width:11px;height:11px;border-radius:4px;flex:none}
+.empty-state{display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:22px 24px;border:1px dashed var(--line);border-radius:var(--r-lg);background:var(--glass-chip);color:var(--ink-soft)}
+.empty-state svg{width:22px;height:22px;color:var(--ink-faint)}
+.empty-state h4{margin:0;font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink)}
+.empty-state p{margin:0;font-size:13px;line-height:1.55;max-width:52ch}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.001s!important;transition-duration:.001s!important}}

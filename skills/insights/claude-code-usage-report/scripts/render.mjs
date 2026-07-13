@@ -17,6 +17,10 @@ const HOME = os.homedir();
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.dirname(SCRIPT_DIR);
 const SOURCES_DIR = path.join(SCRIPT_DIR, "sources");
+// State root must match stats.mjs / statusline.mjs (USAGE_REPORT_STATE overrides).
+const STATE_ROOT = process.env.USAGE_REPORT_STATE || path.join(HOME, ".agents", ".claude-code-usage-report", "state");
+const USAGE_LATEST_JSON = path.join(STATE_ROOT, "usage-latest.json");
+const FORECAST_JSON = path.join(STATE_ROOT, "forecast.json");
 
 function _source(name) {
   return fs.readFileSync(path.join(SOURCES_DIR, name), "utf-8");
@@ -196,7 +200,9 @@ const EFFICIENCY_HTML = `<header class='shead' id='sec-efficiency'><div class='s
 <div class='card rv'><div id='sec-throughput'></div></div>`;
 
 const RATE_LIMITS_HTML = `<header class='shead' id='sec-rate-limit-utilization-5h-7d'><div class='shead-title'><h2>Rate-limit utilization · 5h &amp; 7d</h2><span class='sub'>how close you run to the usage caps</span></div></header>
-<div class='card rv'><h3>5h / 7d usage-limit efficiency</h3><div id='sec-ratelimits'></div></div>`;
+<div class='card rv'><h3>5h / 7d usage-limit efficiency</h3><div id='sec-ratelimits'></div></div>
+<div class='card rv'><h3>Per-model weekly quotas</h3><div id='sec-model-quotas'></div></div>
+<div class='card rv'><h3>Rate-limit forecast at reset</h3><div id='sec-forecast'></div></div>`;
 
 const WHEN_YOU_WORK_HTML = `<header class='shead' id='sec-when-you-work'><div class='shead-title'><h2>When you work</h2><span class='sub'>spend by weekday and hour</span></div></header>
 <div class='card flush2 rv'><h3>Spend by day-of-week × hour</h3><div id='sec-dayhour'></div></div>`;
@@ -289,13 +295,45 @@ const SIDEBAR_JS = `
 })();
 `;
 
+function _load_usage_latest() {
+  // Point-in-time OAuth snapshot (Phase B). null when OAuth is off / no fetch yet.
+  if (!isFile(USAGE_LATEST_JSON)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(USAGE_LATEST_JSON, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+function _load_forecast() {
+  // Empirical-Bayes rate-limit forecast (Phase D). Built lazily by stats.mjs
+  // _load_forecast before render; null when no rl data at all.
+  if (!isFile(FORECAST_JSON)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(FORECAST_JSON, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
 function render_scripts(sessions) {
   const secs = _build_sessions_json(sessions);
   // Escape < so a crafted field (cwd, tool/skill name from a transcript) can't
   // break out of the <script> context. JSON allows \u escapes inside strings.
   const sessions_json = JSON.stringify(secs).replace(/</g, "\\u003c");
+  // USAGE_LATEST: the most recent OAuth usage snapshot (per-model quotas +
+  // extra-usage credits). Empty object (not null) when absent so app.js can
+  // always deref .per_model / .extra_usage and render the empty-state.
+  const latest = _load_usage_latest() || {};
+  const latest_json = JSON.stringify(latest).replace(/</g, "\\u003c");
+  // FORECAST: empirical-Bayes rate-limit forecast (Phase D). Empty object when
+  // absent so app.js can always deref .gauges and render the empty-state.
+  const forecast = _load_forecast() || {};
+  const forecast_json = JSON.stringify(forecast).replace(/</g, "\\u003c");
   return (
-    "<script>\nvar SESSIONS=" + sessions_json + ";\n" + _source("app.js") +
+    "<script>\nvar SESSIONS=" + sessions_json + ";\n" +
+    "var USAGE_LATEST=" + latest_json + ";\n" +
+    "var FORECAST=" + forecast_json + ";\n" + _source("app.js") +
     "\n" + SIDEBAR_JS + "</script>"
   );
 }

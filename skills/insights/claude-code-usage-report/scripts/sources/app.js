@@ -1,5 +1,5 @@
 const CFG = {
-  PALETTE: ["var(--ac)", "var(--amber)", "var(--sage)", "var(--azure)", "var(--ink-soft)", "#8A70B8", "#BE5B72", "#4A9DA0"],
+  PALETTE: ["var(--ac)", "var(--azure)", "var(--amber)", "var(--sage)", "var(--ink-soft)", "#aa41af", "#3c69c8", "#00a5e6"],
   TOKEN: [{name:"input",key:"in",col:"var(--azure)"},{name:"output",key:"out",col:"var(--ac)"},{name:"cache_read",key:"cr",col:"var(--sage)"},{name:"cache_creation",key:"cc",col:"var(--amber)"}],
   HEAT: ["transparent","color-mix(in srgb,var(--ac) 22%,transparent)","color-mix(in srgb,var(--ac) 45%,transparent)","color-mix(in srgb,var(--ac) 70%,transparent)","var(--ac)"],
   LINE_COV: 0.05,
@@ -16,6 +16,25 @@ function pad2(n){return String(n).padStart(2,'0');}
 function el(id){return document.getElementById(id);}
 function isDate(s){return typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);}
 function addDays(iso,n){var y=+iso.slice(0,4),m=+iso.slice(5,7),d=+iso.slice(8,10);var dt=new Date(y,m-1,d+n);return dt.getFullYear()+'-'+pad2(dt.getMonth()+1)+'-'+pad2(dt.getDate());}
+// ---- StatValue count-up + TrendChip (zapac data-viz grammar) ----
+// Animates [data-cu] numeric tiles from 0→final once (CU_FIRST gate), honoring
+// prefers-reduced-motion. data-cu-k picks the formatter (int/money/money3/pct/abbr).
+var CU_FIRST=true;
+var CU_FMT={int:fmtInt,money:fmtMoney,money3:fmtMoney3,pct:function(v){return Math.round(v)+'%';},abbr:fmtAbbr};
+function countUpEl(el){
+  var to=parseFloat(el.dataset.cu);if(isNaN(to))return;
+  var fmt=CU_FMT[el.dataset.cuK||'int']||fmtInt;
+  if(!CU_FIRST||(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){el.textContent=fmt(to);return;}
+  var t0=performance.now(),dur=900;
+  function step(){var p=Math.min((performance.now()-t0)/dur,1);el.textContent=fmt(to*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(step);}
+  requestAnimationFrame(step);
+}
+function countUpAll(){document.querySelectorAll('[data-cu]').forEach(countUpEl);CU_FIRST=false;}
+function trendChip(dp){
+  if(dp==null||isNaN(dp)||!isFinite(dp))return '';
+  var dir=dp>0?'up':(dp<0?'down':'flat'),ar=dir==='up'?'▲':dir==='down'?'▼':'▪';
+  return "<span class='trend-chip' data-dir='"+dir+"'>"+ar+" "+Math.abs(dp).toFixed(0)+"%</span>";
+}
 
 // ---- derived-stats math (client-side, embedded in the report) ----
 function percentile(sv,p){if(!sv.length)return 0;var k=(sv.length-1)*p,f=Math.floor(k),c=Math.ceil(k);if(f===c)return +sv[f];return sv[f]*(c-k)+sv[c]*(k-f);}
@@ -187,12 +206,13 @@ function noteRow(cls,iconPaths,v,k,tip){return "<div class='note"+(cls?' '+cls:'
 // One row of the metric/ratio card (design-system "Metric / ratio card"): eyebrow
 // label, hero figure with a clay /unit, a context line (ctxHtml may carry <b>),
 // and an optional coverage meter. No delta/trend chip by design.
-function ratioBlock(eyebrow,val,unit,ctxHtml,tip,meterPct){
+function ratioBlock(eyebrow,val,unit,ctxHtml,tip,meterPct,raw,kind){
   var u=(val==='—')?'':"<span class='unit'>"+esc(unit)+"</span>";
   var meter=(meterPct==null)?'':"<div class='ratio-meter'><i style='width:"+Math.max(0,Math.min(100,meterPct))+"%'></i></div>";
+  var cu=(raw!=null&&!isNaN(raw))?" data-cu='"+raw+"' data-cu-k='"+(kind||'int')+"'":"";
   return "<div class='ratio'"+(tip?" title='"+escAttr(tip)+"'":"")+">"+
     "<div class='ratio-eyebrow'>"+esc(eyebrow)+"</div>"+
-    "<div class='ratio-hero'><span class='ratio-val'>"+esc(val)+u+"</span></div>"+
+    "<div class='ratio-hero'><span class='ratio-val'"+cu+">"+esc(val)+u+"</span></div>"+
     "<div class='ratio-ctx'>"+ctxHtml+"</div>"+meter+"</div>";
 }
 // structured multi-column text card (design-system: Multi-column text > Structured columns)
@@ -209,7 +229,7 @@ function svgRateTrend(sessions){
   var W=1000,H=220,P=38,n=rl.length;
   var s=scaler(0,Math.max(n-1,1),0,100,W,H,P);
   var fx=s[0],fy=s[1];
-  var d5=pathD(rl.map(function(s2,i){return [fx(i),fy(s2.r5)];}),'#4E9E7B',false,'none',2);
+  var d5=pathD(rl.map(function(s2,i){return [fx(i),fy(s2.r5)];}),'var(--sage)',false,'none',2);
   var d7=pathD(rl.map(function(s2,i){return [fx(i),fy(s2.r7)];}),'var(--ac)',false,'none',2);
   var th80=pathD([[fx(0),fy(80)],[fx(n-1),fy(80)]],'var(--ink-soft)',true,'none',1);
   var ceiling=pathD([[fx(0),fy(100)],[fx(n-1),fy(100)]],'var(--ink-faint)',false,'none',0.6);
@@ -249,15 +269,15 @@ function svgRateTrend(sessions){
   var dots='';
   rl.forEach(function(s2,i){
     var x=fx(i),tip=esc(s2.ts.slice(0,10)+' · 5h '+s2.r5.toFixed(1)+'% · 7d '+s2.r7.toFixed(1)+'%');
-    dots+="<circle cx='"+x.toFixed(1)+"' cy='"+fy(s2.r5).toFixed(1)+"' r='3' fill='#4E9E7B' opacity='0.85'><title>"+tip+"</title></circle>";
+    dots+="<circle cx='"+x.toFixed(1)+"' cy='"+fy(s2.r5).toFixed(1)+"' r='3' fill='var(--sage)' opacity='0.85'><title>"+tip+"</title></circle>";
     dots+="<circle cx='"+x.toFixed(1)+"' cy='"+fy(s2.r7).toFixed(1)+"' r='3' fill='var(--ac)' opacity='0.85'><title>"+tip+"</title></circle>";
   });
-  var leg="<div class='legend' style='margin:6px 0'><span class='lg-item'><span class='lg-swatch' style='background:#4E9E7B'></span>5h window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--ac)'></span>7d window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--weekend);opacity:.5'></span>weekend</span></div>";
+  var leg="<div class='legend' style='margin:6px 0'><span class='lg-item'><span class='lg-swatch' style='background:var(--sage)'></span>5h window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--ac)'></span>7d window</span><span class='lg-item'><span class='lg-swatch' style='background:var(--weekend);opacity:.5'></span>weekend</span></div>";
   return leg+svgWrap(W,H,axes+ceiling+th80+yticks+xlabels+wknd+d5+d7+dots,'chart');
 }
 function renderRateLimits(sessions){
   var rl=sessions.filter(function(s){return s.r5>0||s.r7>0;});
-  if(!rl.length)return "<div class='note info'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8'><circle cx='12' cy='12' r='9'/><path d='M12 8h.01M11 12h1v4h1'/></svg><div class='txt'><b>No rate-limit data yet.</b> Tracking fills as sessions record (forward-only, Claude.ai Pro/Max only).</div></div>";
+  if(!rl.length)return "<div class='empty-state'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 8h.01M11 12h1v4h1'/></svg><h4>No rate-limit data yet.</h4><p>Tracking fills as sessions record — forward-only, Claude.ai Pro/Max only (absent for API-key/Bedrock/Vertex and some Max 20x oauth users).</p></div>";
   var r5s=rl.map(function(s){return s.r5;}),r7s=rl.map(function(s){return s.r7;});
   var avg=function(a){return a.reduce(function(x,y){return x+y;},0)/a.length;};
   var maxA=function(a){return Math.max.apply(null,a);};
@@ -271,6 +291,85 @@ function renderRateLimits(sessions){
     {title:'7-day window',stats:[["avg %",avg(r7s).toFixed(1)],["peak %",maxA(r7s).toFixed(1)]]},
     {title:'Headroom',stats:[["near-cap (>80%)",fmtInt(nearCap)],["capped (100%)",fmtInt(capped)],["$/7d%-pt at peak",fmtMoney($per7pt)]]}
   ]);
+}
+// Per-model weekly quotas + extra-usage credits from the OAuth usage snapshot
+// (USAGE_LATEST, embedded by render.mjs). Point-in-time, not per-session, so it
+// lives outside the SESSIONS payload. Empty-state when OAuth polling is off or
+// the plan exposes no per-model breakdown. utilization is in percent (API contract).
+function renderModelQuotas(L){
+  L=L||{};
+  var pm=L.per_model||{};
+  var order=['sonnet','opus','design'];
+  var have=order.filter(function(m){return pm[m]&&pm[m].utilization!=null;});
+  if(!have.length){
+    return "<div class='empty-state'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 8h.01M11 12h1v4h1'/></svg><h4>No per-model quota data.</h4><p>Captured from the OAuth usage API (opt-in): run <code>node stats.mjs fetch-usage --oauth --save</code> with <code>USAGE_REPORT_OAUTH=1</code>. Absent on some plans.</p></div>";
+  }
+  var colorFor=function(p){return p>=80?'var(--ac)':(p>=50?'var(--amber)':'var(--sage)');};
+  var html='';
+  order.forEach(function(m){
+    var w=pm[m]; if(!w||w.utilization==null)return;
+    var p=Number(w.utilization),pct=Math.max(2,Math.min(100,p));
+    var reset=w.resets_at?(' resets '+esc(String(w.resets_at).slice(0,19).replace('T',' '))):'';
+    html+="<div class='bar-row'><div class='bar-label'>"+esc(m)+"</div><div class='bar-track'><div class='bar' style='width:"+pct.toFixed(1)+"%;background:"+colorFor(p)+"'></div></div><div class='bar-val'>"+p.toFixed(1)+"%"+reset+"</div></div>";
+  });
+  var eu=L.extra_usage,cards='';
+  if(eu&&eu.is_enabled){
+    cards=colcards([{title:'Extra-usage credits',stats:[
+      ["monthly limit",eu.monthly_limit!=null?fmtInt(eu.monthly_limit):'—'],
+      ["used credits",eu.used_credits!=null?fmtInt(eu.used_credits):'—'],
+      ["utilization",eu.utilization!=null?(Number(eu.utilization).toFixed(1)+'%'):'—']
+    ]}]);
+  }
+  return html+cards+"<p class='muted' style='margin-top:6px'>Snapshot: "+esc(L.fetched_at||'—')+" · OAuth usage API (opt-in)</p>";
+}
+// Empirical-Bayes rate-limit forecast (FORECAST, embedded by render.mjs). Projects
+// each gauge's utilization at its reset boundary with an 80% credible interval
+// + ETA-to-threshold, fit from OAuth usage-snapshots (or a prior-only statusline
+// fallback when OAuth is off). claumon MODEL v2.1 port (forecast.mjs). Empty-state
+// when neither gauge has enough rl-bearing history.
+function fmtEta(e){
+  if(!e)return '—';
+  if(e.pInf>=0.5)return 'never ('+Math.round(e.pInf*100)+'% of paths)';
+  var med=e.median?new Date(e.median*1000):null;
+  var s=med?(pad2(med.getMonth()+1)+'-'+pad2(med.getDate())+' '+pad2(med.getHours())+':'+pad2(med.getMinutes())):'—';
+  return s+(e.upper?'':' · open-ended')+'  ·  P∞ '+Math.round(e.pInf*100)+'%';
+}
+function pad2(n){return String(n).padStart(2,'0');}
+function renderForecast(F){
+  F=F||{};
+  var g=F.gauges||{};
+  var labels={five_hour:'5-hour window',seven_day:'7-day window'};
+  var keys=['five_hour','seven_day'];
+  var anyOk=keys.some(function(k){return g[k]&&g[k].ok;});
+  if(!anyOk){
+    return "<div class='empty-state'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><path d='M3 17l6-6 4 4 8-8'/><path d='M14 7h7v7'/></svg><h4>No forecast yet.</h4><p>Needs ≥2 completed rate-limit windows. Captured from the OAuth usage API (opt-in): run <code>node stats.mjs fetch-usage --oauth --save</code> with <code>USAGE_REPORT_OAUTH=1</code>. A prior-only view appears from statusline rl data once ≥2 sessions record it.</p></div>";
+  }
+  var colorFor=function(p){return p>=80?'var(--ac)':(p>=50?'var(--amber)':'var(--sage)');};
+  var rows='';
+  keys.forEach(function(k){
+    var gg=g[k]; if(!gg||!gg.ok)return;
+    var lbl=labels[k], src=gg.source==='statusline'?'statusline rl':'OAuth';
+    if(gg.result){
+      var fc=gg.result.forecast,u=gg.result.uNow;
+      var f=fc.f,lo=fc.lower,hi=fc.upper;
+      // scale 0..max(100, hi) so a projected value >100 (demand past the cap) stays visible
+      var top=Math.max(100,Math.ceil(hi/10)*10);
+      var pct=Math.max(0,Math.min(100,(f/top)*100)).toFixed(1);
+      var bar="<div class='bar-row'><div class='bar-label'>"+esc(lbl)+"</div>"+
+        "<div class='bar-track'><div class='bar' style='width:"+pct+"%;background:"+colorFor(f)+"'></div></div>"+
+        "<div class='bar-val'>"+f.toFixed(1)+"%</div></div>";
+      rows+=bar;
+      rows+="<div class='cc-row' style='padding:2px 0 0 0'><span>now → reset</span><b>"+u.toFixed(1)+"% → "+f.toFixed(1)+"%  <span class='muted'>80% CI ["+lo.toFixed(1)+"–"+hi.toFixed(1)+"]</span></b></div>";
+      rows+="<div class='cc-row' style='padding:2px 0 0 0'><span>ETA to 100%</span><b>"+esc(fmtEta(gg.result.etas['100']))+"</b></div>";
+      rows+="<div class='cc-row' style='padding:2px 0 6px 0'><span>ETA to 80%</span><b>"+esc(fmtEta(gg.result.etas['80']))+"</b></div>";
+    } else {
+      var mu=gg.prior?gg.prior.mu0:0;
+      rows+="<div class='bar-row'><div class='bar-label'>"+esc(lbl)+"</div><div class='bar-track'></div><div class='bar-val muted'>prior only</div></div>";
+      rows+="<div class='cc-row' style='padding:2px 0 6px 0'><span>rate prior</span><b>"+mu.toFixed(2)+"%/h · n="+gg.nWindows+"</b></div>";
+    }
+    rows+="<p class='muted' style='margin:0 0 10px 0'>"+esc(lbl)+": "+src+", n="+gg.nWindows+" window"+(gg.nWindows===1?'':'s')+(gg.result&&gg.result.posterior?(gg.result.posterior.usedOLS?', OLS fit':', prior fallback'):'')+"</p>";
+  });
+  return rows+"<p class='muted' style='margin-top:4px'>Model "+esc(F.modelVersion||'v2.1-js')+" · fit "+esc(F.fitAt||'—')+" · 80% CI from monotone Gamma-process MC</p>";
 }
 function perModelEfficiency(rates,days,cmap){
   var keys=Object.keys(rates);if(!keys.length)return '<p class="muted">No data.</p>';
@@ -336,8 +435,8 @@ function renderHero(agg,st,firstDate){
     var covPct=Math.round((st.lineCov||0)*100);
     var lineCtx=st.loc?("<b>"+esc(fmtInt(st.loc))+"</b> lines &middot; <b>"+covPct+"%</b> coverage"):esc(fromNote);
     eff.innerHTML=
-      ratioBlock("Cost / active hour",hourVal,"/hr",hourCtx,hourTip,null)+
-      ratioBlock("Cost / line shipped",lineVal,"/line",lineCtx,lineTip,st.loc?covPct:null);
+      ratioBlock("Cost / active hour",hourVal,"/hr",hourCtx,hourTip,null,st.activeDurHr?(st.activeCost/st.activeDurHr):null,'money')+
+      ratioBlock("Cost / line shipped",lineVal,"/line",lineCtx,lineTip,st.loc?covPct:null,(st.loc&&st.lineCov>=CFG.LINE_COV)?(st.locCost/st.loc):null,'money3');
   }
   var apiPct=t.dur?(t.api/t.dur*100):0;
   var dkeys=Object.keys(agg.days).filter(isDate).sort().slice(-30);
@@ -350,11 +449,14 @@ function renderHero(agg,st,firstDate){
     return "<div class='sbars'>"+h+"</div>";
   }
   var supp=[
-    ["sessions",fmtInt(agg.n),"recorded","Rows in stats.csv (one per session). Bars: sessions per day, accent = busiest quartile.",sbars(series(function(dd){return dd.sessions;}))],
-    ["output tok",fmtAbbr(t.out),fmtAbbr(t.in)+" input","Output vs input tokens across all sessions. Bars: output tokens per day.",sbars(series(function(dd){return dd.out;}))],
-    ["cache hit",Math.round(st.cacheHit*100)+"%","read / (read+input)","cache_read / (cache_read + input) — higher means less re-processed context. Bars: daily cache-hit rate.",sbars(series(function(dd){return (dd.cr+dd.in)?dd.cr/(dd.cr+dd.in)*100:0;}))],
-    ["API time",t.dur?(apiPct.toFixed(0)+'%'):'—',t.dur?'of wall-clock':fromNote,"api_duration_ms / duration_ms — share of wall-clock spent on API calls. Bars: daily share.",sbars(series(function(dd){return dd.dur?dd.api/dd.dur*100:0;}))]];
-  var suppHtml='';supp.forEach(function(s){suppHtml+="<div class='supp' title='"+escAttr(s[3])+"'><span class='v'>"+esc(s[1])+"</span><span class='k'>"+esc(s[0])+"</span><span class='d'>"+esc(s[2])+"</span>"+s[4]+"</div>";});
+    ["sessions",fmtInt(agg.n),agg.n,'int',"recorded","Rows in stats.csv (one per session). Bars: sessions per day, accent = busiest quartile.",sbars(series(function(dd){return dd.sessions;}))],
+    ["output tok",fmtAbbr(t.out),t.out,'abbr',fmtAbbr(t.in)+" input","Output vs input tokens across all sessions. Bars: output tokens per day.",sbars(series(function(dd){return dd.out;}))],
+    ["cache hit",Math.round(st.cacheHit*100)+"%",st.cacheHit*100,'pct',"read / (read+input)","cache_read / (cache_read + input) — higher means less re-processed context. Bars: daily cache-hit rate.",sbars(series(function(dd){return (dd.cr+dd.in)?dd.cr/(dd.cr+dd.in)*100:0;}))],
+    ["API time",t.dur?(apiPct.toFixed(0)+'%'):'—',t.dur?apiPct:null,'pct',t.dur?'of wall-clock':fromNote,"api_duration_ms / duration_ms — share of wall-clock spent on API calls. Bars: daily share.",sbars(series(function(dd){return dd.dur?dd.api/dd.dur*100:0;}))]];
+  var suppHtml='';supp.forEach(function(s){
+    var vspan="<span class='v'"+(s[2]!=null?" data-cu='"+s[2]+"' data-cu-k='"+s[3]+"'":"")+">"+esc(s[1])+"</span>";
+    suppHtml+="<div class='supp' title='"+escAttr(s[5])+"'>"+vspan+"<span class='k'>"+esc(s[0])+"</span><span class='d'>"+esc(s[4])+"</span>"+s[6]+"</div>";
+  });
   return "<div class='supp-strip'>"+suppHtml+"</div>";
 }
 
@@ -362,7 +464,7 @@ function renderHero(agg,st,firstDate){
 function render(range){
   var S=filterSessions(range);
   var agg=aggregate(S);
-  if(!agg.n){var msg='<p class="muted">No sessions in selected range.</p>';['kpi','sec-cumulative','sec-runrate','sec-cal','sec-eff-ratios','day-chart','month-chart','day-table','month-table','tok-day-bars','tok-month-bars','tok-mix','cc-ratio','sec-eff-models','sec-throughput','sec-ratelimits','sec-dayhour','sec-scatter','sec-pareto','sec-toptable','sec-treemap','sec-model-sessions','sec-model-cost','sec-share','sec-usage-stats','sec-tools','sec-agents','sec-skills','sec-proj-cost','sec-proj-sess'].forEach(function(id){var e=el(id);if(e)e.innerHTML=msg;});el('tok-legend').innerHTML='';return;}
+  if(!agg.n){var msg='<p class="muted">No sessions in selected range.</p>';['kpi','sec-cumulative','sec-runrate','sec-cal','sec-eff-ratios','day-chart','month-chart','day-table','month-table','tok-day-bars','tok-month-bars','tok-mix','cc-ratio','sec-eff-models','sec-throughput','sec-ratelimits','sec-model-quotas','sec-forecast','sec-dayhour','sec-scatter','sec-pareto','sec-toptable','sec-treemap','sec-model-sessions','sec-model-cost','sec-share','sec-usage-stats','sec-tools','sec-agents','sec-skills','sec-proj-cost','sec-proj-sess'].forEach(function(id){var e=el(id);if(e)e.innerHTML=msg;});el('tok-legend').innerHTML='';return;}
   var st=deriveStats(agg,range),t=agg.totals;
   var chartModels=agg.models.slice();
   var hasOthers=Object.keys(agg.days).some(function(k){return 'others' in agg.days[k].cost_by_model;})||Object.keys(agg.months).some(function(k){return 'others' in agg.months[k].cost_by_model;});
@@ -408,6 +510,10 @@ function render(range){
   ]);
   // rate-limit utilization (5h / 7d) — forward-only, Claude.ai Pro/Max only
   el('sec-ratelimits').innerHTML=renderRateLimits(agg.sessions);
+  // per-model weekly quotas + extra-usage credits (OAuth snapshot, opt-in)
+  el('sec-model-quotas').innerHTML=renderModelQuotas(USAGE_LATEST);
+  // rate-limit forecast at reset (EB model, OAuth snapshots + statusline fallback)
+  el('sec-forecast').innerHTML=renderForecast(FORECAST);
   // when you work
   el('sec-dayhour').innerHTML=dayhourHeatmap(agg.sessions);
   // sessions
@@ -430,12 +536,13 @@ function render(range){
     {title:'Ecosystem',stats:[["subagent types",String(Object.keys(agg.usage.agents).length)],["skills used",String(Object.keys(agg.usage.skills).length)]]}
   ]);
   el('sec-tools').innerHTML=barChart(topn(agg.usage.tools),'var(--ink-soft)',function(v){return fmtInt(v);});
-  el('sec-agents').innerHTML=barChart(topn(agg.usage.agents),'#5484B0',function(v){return fmtInt(v);});
-  el('sec-skills').innerHTML=barChart(topn(agg.usage.skills,20),'#8A70B8',function(v){return fmtInt(v);});
+  el('sec-agents').innerHTML=barChart(topn(agg.usage.agents),'var(--azure)',function(v){return fmtInt(v);});
+  el('sec-skills').innerHTML=barChart(topn(agg.usage.skills,20),'var(--ac)',function(v){return fmtInt(v);});
   // projects
   var projCost={},projSess={};Object.keys(agg.projects).forEach(function(k){var lbl=projLabel(k);projCost[lbl]=(projCost[lbl]||0)+agg.projects[k].cost;projSess[lbl]=(projSess[lbl]||0)+agg.projects[k].sessions;});
   el('sec-proj-cost').innerHTML=barChart(topn(projCost,15),'var(--ac)',function(v){return fmtMoney(v);});
   el('sec-proj-sess').innerHTML=barChart(topn(projSess,15),'var(--ink-soft)',function(v){return fmtInt(v);});
+  countUpAll();
 }
 
 // ---- controls ----

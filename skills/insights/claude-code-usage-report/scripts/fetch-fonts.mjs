@@ -10,10 +10,11 @@ import { fileURLToPath } from "node:url";
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(SCRIPT_DIR, "sources", "fonts.css");
 
-// Families + weights actually referenced in style.css (400/600/700; no 500).
+// Families + weights actually referenced in style.css. zapac identity:
+// Lato (display + body, AA Zuehlke fallback — proprietary, not distributable)
+// + JetBrains Mono (code). Lato has no 600 weight; 400/700 cover the stack.
 const SPEC =
-  "family=Bricolage+Grotesque:wght@400;600;700" +
-  "&family=Inter:wght@400;600;700" +
+  "family=Lato:wght@400;700" +
   "&family=JetBrains+Mono:wght@400;600;700";
 const CSS_URL = `https://fonts.googleapis.com/css2?${SPEC}&display=swap`;
 // Modern-browser UA so Google serves woff2 (not ttf).

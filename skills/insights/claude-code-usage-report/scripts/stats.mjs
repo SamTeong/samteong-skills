@@ -6,6 +6,7 @@ import os from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { render } from "./render.mjs";
+import * as FC from "./forecast.mjs";
 
 const HOME = os.homedir();
 const CLAUDE_DIR = path.join(HOME, ".claude");
@@ -16,6 +17,28 @@ const SKILL_STATE_DIR = process.env.USAGE_REPORT_STATE || path.join(HOME, ".agen
 const STATE_DIR = path.join(SKILL_STATE_DIR, "cost-state");
 export const STATS_CSV = path.join(SKILL_STATE_DIR, "stats.csv");
 const SESSIONS_JSONL = path.join(SKILL_STATE_DIR, "sessions.jsonl");
+// Transcript-totals cache (Phase A): a parse accelerator so `backfill`/`report`
+// don't re-parse every transcript on each run. Keyed by sid → {main_mtime, sub,
+// res}; re-parse only when a transcript or any subagent-run file changed. Bump
+// TOTALS_CACHE_VERSION when parse_transcript / session_totals result shape
+// changes — a mismatch invalidates the whole cache.
+const TOTALS_CACHE = path.join(SKILL_STATE_DIR, "totals-cache.json");
+const TOTALS_CACHE_VERSION = 1;
+// OAuth usage-API (Phase B). Off by default — the skill is local-only unless
+// USAGE_REPORT_OAUTH=1 or --oauth is passed. Creds read from ~/.claude/.credentials.json
+// (claudeAiOauth.accessToken); OS keychain not handled in v1 (documented fallback).
+const CREDENTIALS_PATH = path.join(CLAUDE_DIR, ".credentials.json");
+const USAGE_SNAPSHOTS_JSONL = path.join(SKILL_STATE_DIR, "usage-snapshots.jsonl");
+const USAGE_LATEST_JSON = path.join(SKILL_STATE_DIR, "usage-latest.json");
+const USAGE_API_URL = "https://api.anthropic.com/api/oauth/usage";
+const USAGE_API_BETA = "oauth-2025-04-20";
+const USAGE_API_TIMEOUT_MS = 10000;
+// Rate-limit forecast (Phase D). Empirical-Bayes fit persisted here; refit when
+// stale (same >7d-or-newer-data rule as priors). Pure math lives in forecast.mjs.
+const FORECAST_JSON = path.join(SKILL_STATE_DIR, "forecast.json");
+// Nominal window lengths, per claumon forecast.service.go durationFor. Used as
+// DurationHours in the rate prior (rho = uFinal / durationHours, percent/hour).
+const GAUGE_DUR_HOURS = { five_hour: 5, seven_day: 7 * 24 };
 // Reports sit beside the state dir, so USAGE_REPORT_STATE relocates them too.
 const REPORTS_DIR = path.join(path.dirname(SKILL_STATE_DIR), "reports");
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -25,7 +48,7 @@ const SCRIPT = fileURLToPath(import.meta.url);
 const HEADER = "timestamp,session_id,total_cost_usd,last_model,input_tokens,output_tokens," +
   "cache_read_tokens,cache_creation_tokens,model_id,model_display_name,duration_ms," +
   "api_duration_ms,lines_added,lines_removed,rl_5h_pct,rl_7d_pct,context_pct," +
-  "context_window_size,turns,tool_calls,start_epoch,facets_json";
+  "context_window_size,turns,tool_calls,start_epoch,facets_json,est_cost_usd";
 const COLS = HEADER.split(",");
 const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
 
@@ -290,6 +313,66 @@ function _new_facets() {
   return { tools: {}, tool_errors: 0, agents: {}, skills: {}, compactions: 0, cwd: "", branch: "" };
 }
 
+// ---- transcript-totals cache (Phase A) ----
+// stats.csv stays the rendered source of truth; this cache only avoids re-parsing
+// unchanged transcripts during backfill/report. The `res` field mirrors the
+// return shape of session_totals(). _dirty tracks whether a write is needed.
+function _load_totals_cache() {
+  if (!isFile(TOTALS_CACHE)) return { _v: TOTALS_CACHE_VERSION, sids: {}, _dirty: false };
+  try {
+    const c = JSON.parse(fs.readFileSync(TOTALS_CACHE, "utf-8"));
+    if (!c || c._v !== TOTALS_CACHE_VERSION) {
+      return { _v: TOTALS_CACHE_VERSION, sids: {}, _dirty: true };
+    }
+    c.sids = (c.sids && typeof c.sids === "object" && !Array.isArray(c.sids)) ? c.sids : {};
+    c._dirty = false;
+    return c;
+  } catch {
+    return { _v: TOTALS_CACHE_VERSION, sids: {}, _dirty: true };
+  }
+}
+
+function _save_totals_cache(cache) {
+  if (!cache._dirty) return;
+  try {
+    fs.writeFileSync(
+      TOTALS_CACHE,
+      JSON.stringify({ _v: cache._v, sids: cache.sids }),
+      { encoding: "utf-8", mode: 0o600 }
+    );
+  } catch {
+    /* non-fatal: a missed cache write just means re-parsing next time */
+  }
+}
+
+function _same_sub_mtimes(a, b) {
+  if (!a || !b) return false;
+  const ak = Object.keys(a), bk = Object.keys(b);
+  if (ak.length !== bk.length) return false;
+  for (const k of ak) if (a[k] !== b[k]) return false;
+  return true;
+}
+
+// session_totals with mtime-gated caching. `mainPath` (the main transcript for
+// sid) is optional; when absent, find_transcript resolves it (and a missing
+// transcript returns the empty uncached result, as session_totals does).
+function _cached_session_totals(sid, mainPath, cache) {
+  const main = mainPath || find_transcript(sid);
+  if (!main) return session_totals(sid, null);
+  const subPaths = fs.globSync(`${PROJECTS_GLOB}/*/${sid}/**/*.jsonl`);
+  const mainM = getmtime(main);
+  const subM = {};
+  for (const p of subPaths) subM[p] = getmtime(p);
+  const entry = cache.sids[sid];
+  if (entry && entry.main_mtime === mainM && _same_sub_mtimes(entry.sub, subM)) {
+    return entry.res;
+  }
+  const res = session_totals(sid, main);
+  cache.sids[sid] = { main_mtime: mainM, sub: subM, res };
+  cache._dirty = true;
+  return res;
+}
+
 // Extract skill names from user-typed slash commands in a user message body.
 // Slash invocations appear as <command-name>/NAME</command-name> text injected
 // by the harness; built-in CLI commands are filtered out. Returns one skill
@@ -418,6 +501,97 @@ const PRICE = {
 };
 const DEFAULT_PRICE_KEY = "opus";
 
+// Long-context tier mechanism: if a model bills input-side tokens at a higher
+// rate above a token threshold, put [input, output, cache_read, cache_create]
+// $/MTok in PRICE_ABOVE under its key. Applied per API call, never on summed
+// session tokens (cache_read accumulates across turns and would spuriously
+// trip it). Empty by default: as of the current lineup NO Claude model has a
+// >200k premium — Fable/Opus/Sonnet all bill the full 1M window at standard
+// rates (per claude.com/pricing#api). Kept as a mechanism so a tier can be
+// re-added via pricing.json `above_200k` if Anthropic reintroduces one.
+let LONG_CTX_THRESHOLD = 200000;
+const PRICE_ABOVE = {};
+
+// Optional pricing override so rates can be bumped without editing this file:
+// ~/.agents/.claude-code-usage-report/state/pricing.json. Shape (all optional):
+//   { "base": { "opus": [in, out, cache_read, cache_create], ... },
+//     "above_200k": { "sonnet": [in, out, cache_read, cache_create], ... },
+//     "long_context_threshold": 200000 }
+// A bare { "opus": [...], ... } map is accepted as base overrides. Only 4-number
+// rate arrays are honored; malformed/unreadable files are ignored silently.
+const PRICE_OVERRIDE_JSON = path.join(SKILL_STATE_DIR, "pricing.json");
+
+// Phase F: live pricing refresh. Layered resolve (lowest → highest priority):
+//   embedded PRICE → pricing-cache.json (if <24h, from `fetch-pricing --oauth`)
+//   → PROMOS (time-bounded intro rates, in-window) → manual pricing.json override.
+// Network only on explicit `fetch-pricing --oauth` (same gate as fetch-usage); the
+// module-load resolve stays local. Cache shape: {updated, base:{<family>:[4-array]}}.
+const PRICING_CACHE_JSON = path.join(SKILL_STATE_DIR, "pricing-cache.json");
+const PRICING_REMOTE_URL = "https://raw.githubusercontent.com/fabioconcina/claumon/main/pricing.json";
+const PRICING_FETCH_TIMEOUT_MS = 10000;
+const PRICING_CACHE_MAX_AGE_S = 24 * 3600;
+// Known time-bounded intro rates the embedded table doesn't carry. Applied at load
+// when today ≤ expires (after cache, before manual override). Closes the SKILL.md
+// gap "Sonnet 5 intro pricing ($2/$10 to 2026-08-31) is not reflected".
+const PROMOS = [
+  { family: "sonnet", rates: [2.0, 10.0, 0.2, 2.5], expires: "2026-08-31" },
+];
+
+function _is_rate(a) {
+  return Array.isArray(a) && a.length === 4 && a.every((x) => typeof x === "number" && Number.isFinite(x));
+}
+
+// Merge a family→4-array map into PRICE (validated; unknown families ignored).
+function _merge_price_base(base) {
+  if (!base || typeof base !== "object") return;
+  for (const [k, v] of Object.entries(base)) {
+    if (_is_rate(v) && PRICE[k] !== undefined) PRICE[k] = v.slice();
+  }
+}
+
+function _load_pricing_cache() {
+  if (!isFile(PRICING_CACHE_JSON)) return null;
+  let c;
+  try { c = JSON.parse(fs.readFileSync(PRICING_CACHE_JSON, "utf-8")); } catch { return null; }
+  if (!c || typeof c !== "object") return null;
+  // Freshness: mtime-based (the fetcher stamps `updated` too, but mtime is exact).
+  if (Date.now() / 1000 - getmtime(PRICING_CACHE_JSON) > PRICING_CACHE_MAX_AGE_S) return null;
+  return c;
+}
+
+function _promo_active(p) {
+  if (!p.expires) return true;
+  const d = new Date(p.expires + "T23:59:59");
+  return Number.isNaN(d.getTime()) ? false : Date.now() <= d.getTime();
+}
+
+function _apply_price_overrides() {
+  // 1. live-pricing cache (if fresh)
+  const cache = _load_pricing_cache();
+  if (cache) _merge_price_base(cache.base);
+  // 2. time-bounded promos (win over cache while in-window)
+  for (const p of PROMOS) {
+    if (_promo_active(p) && _is_rate(p.rates) && PRICE[p.family] !== undefined) {
+      PRICE[p.family] = p.rates.slice();
+    }
+  }
+  // 3. manual override (always wins)
+  if (!isFile(PRICE_OVERRIDE_JSON)) return;
+  let ov;
+  try { ov = JSON.parse(fs.readFileSync(PRICE_OVERRIDE_JSON, "utf-8")); } catch { return; }
+  if (!ov || typeof ov !== "object" || Array.isArray(ov)) return;
+  const bare = !ov.base && !ov.above_200k && !("long_context_threshold" in ov);
+  const base = ov.base && typeof ov.base === "object" ? ov.base : (bare ? ov : null);
+  if (base) for (const [k, v] of Object.entries(base)) if (_is_rate(v) && PRICE[k] !== undefined) PRICE[k] = v.slice();
+  if (ov.above_200k && typeof ov.above_200k === "object") {
+    for (const [k, v] of Object.entries(ov.above_200k)) if (_is_rate(v)) PRICE_ABOVE[k] = v.slice();
+  }
+  if (typeof ov.long_context_threshold === "number" && ov.long_context_threshold > 0) {
+    LONG_CTX_THRESHOLD = ov.long_context_threshold;
+  }
+}
+_apply_price_overrides();
+
 // Strip the mcp__<server>__ prefix so namespaced and bare forms classify alike.
 const _canon_tool = (n) => n.replace(/^mcp__.*?__/, "");
 
@@ -449,6 +623,54 @@ function _price_key(model) {
 function _msg_cost(model, i, o, cr, cc) {
   const [inp, out, crp, ccp] = PRICE[_price_key(model)];
   return (i * inp + o * out + cr * crp + cc * ccp) / 1e6;
+}
+
+// Per-message cost with the long-context tier applied when this request's
+// input-side tokens exceed the threshold. Use for absolute cost estimation;
+// _seg_weight keeps the base-rate form since it only sets relative weights.
+function _msg_cost_tiered(model, i, o, cr, cc) {
+  const above = PRICE_ABOVE[_price_key(model)];
+  if (above && i + cr + cc > LONG_CTX_THRESHOLD) {
+    return (i * above[0] + o * above[1] + cr * above[2] + cc * above[3]) / 1e6;
+  }
+  return _msg_cost(model, i, o, cr, cc);
+}
+
+// Sum assistant-message cost for one transcript file (per message so the
+// long-context tier applies at request granularity). `includeSidechain` flips
+// the isSidechain filter: the main transcript inlines sidechain echoes (skip
+// them), but a subagent-run transcript IS the sidechain — every row is marked
+// isSidechain relative to the parent, so include them there.
+function _transcript_msg_cost(p, includeSidechain = false) {
+  if (!p || !isFile(p)) return 0;
+  let usd = 0;
+  for (const o of iter_jsonl(p)) {
+    if (!includeSidechain && o.isSidechain === true) continue;
+    if (o.isMeta === true) continue;
+    if (o.type !== "assistant") continue;
+    const tk = _msg_tokens(o.message || {});
+    if (!tk) continue;
+    usd += _msg_cost_tiered(tk.model, tk.i, tk.o, tk.cr, tk.cc);
+  }
+  return usd;
+}
+
+// Approximate a session's cost from transcript tokens, for sessions with no
+// billed cost captured (no statusline). Main transcript + each subagent-run
+// transcript, summed per assistant message so the long-context tier applies at
+// request granularity (Phase G: subagent tokens folded in so est_cost_usd isn't
+// a floor). Billed-cost sessions are unaffected — total_cost_usd wins in the
+// report and priors calibrate on billed only.
+function computed_cost_from_transcript(p) {
+  if (!p || !isFile(p)) return 0;
+  let usd = _transcript_msg_cost(p, false);
+  const sid = path.basename(p, ".jsonl");
+  if (sid && sid !== ZERO_UUID) {
+    for (const sp of fs.globSync(`${PROJECTS_GLOB}/*/${sid}/**/*.jsonl`)) {
+      usd += _transcript_msg_cost(sp, true);
+    }
+  }
+  return usd;
 }
 
 function _seg_weight(seg) {
@@ -611,6 +833,7 @@ function _build_priors(files) {
       (cats[cat] = cats[cat] || []).push({
         cost, calibrated, out: seg.out, api_turns: seg.api_turns,
         tot: seg.in + seg.out + seg.cr + seg.cc,
+        t: seg.start, // epoch; for the OOS hold-out ordering (Phase E)
       });
     }
   }
@@ -625,8 +848,11 @@ function _build_priors(files) {
   };
 
   const categories = {};
+  const _cal_by_cat = {};
   for (const [cat, recs] of Object.entries(cats)) {
-    const cal_costs = recs.filter((r) => r.calibrated).map((r) => r.cost);
+    const cal = recs.filter((r) => r.calibrated);
+    const cal_costs = cal.map((r) => r.cost);
+    _cal_by_cat[cat] = cal_costs;
     categories[cat] = {
       n: recs.length,
       n_cost: cal_costs.length,
@@ -634,8 +860,10 @@ function _build_priors(files) {
       out_tok: dist(recs.map((r) => r.out)),
       total_tok: dist(recs.map((r) => r.tot)),
       api_turns: dist(recs.map((r) => r.api_turns)),
+      calibration: _calibrate_oos(cal),
     };
   }
+  _shrink_categories(categories, _cal_by_cat);
   let n_cost = 0;
   let n_ops = 0;
   for (const recs of Object.values(cats)) {
@@ -666,25 +894,126 @@ function round4(x) {
   return Number.isFinite(x) ? Math.round(x * 1e4) / 1e4 : x;
 }
 
+// Phase E: out-of-sample calibration of the percentile cost priors. Hold out the
+// most recent N calibrated ops (by seg.start), fit p50/p90 on the rest, then score
+// coverage (% of held-out ≤ the predicted quantile), bias (mean(test)−mean(train)),
+// and pinball loss per quantile. Flags categories whose p90 coverage < 0.7 (the
+// estimate p90 is then unreliable). Returns null when too few calibrated ops to
+// split. No model change — this audits the existing priors so trust in `estimate`
+// is explicit.
+function _calibrate_oos(cal) {
+  const have = cal.filter((r) => r.t != null && Number.isFinite(r.cost));
+  if (have.length < 15) return null;
+  have.sort((a, b) => a.t - b.t);
+  const holdN = Math.min(30, Math.max(5, Math.round(have.length * 0.2)));
+  if (have.length - holdN < 10) return null;
+  const train = have.slice(0, have.length - holdN).map((r) => r.cost).sort((a, b) => a - b);
+  const test = have.slice(have.length - holdN).map((r) => r.cost);
+  const p50 = _percentile(train, 0.5), p90 = _percentile(train, 0.9);
+  const trainMean = train.reduce((a, b) => a + b, 0) / train.length;
+  const testMean = test.reduce((a, b) => a + b, 0) / test.length;
+  let cov50 = 0, cov90 = 0, pb50 = 0, pb90 = 0;
+  const pinball = (tau, y, q) => (y >= q) ? tau * (y - q) : (tau - 1) * (y - q);
+  for (const y of test) {
+    if (y <= p50) cov50++;
+    if (y <= p90) cov90++;
+    pb50 += pinball(0.5, y, p50);
+    pb90 += pinball(0.9, y, p90);
+  }
+  const n = test.length;
+  return {
+    n_test: n,
+    p50_coverage: round4(cov50 / n),
+    p90_coverage: round4(cov90 / n),
+    bias: round4(testMean - trainMean),
+    pinball_p50: round4(pb50 / n),
+    pinball_p90: round4(pb90 / n),
+    p90_reliable: cov90 / n >= 0.7,
+  };
+}
+
+// Phase H: empirical-Bayes shrinkage of small-n category cost priors toward a
+// cross-category mean. Reuses the forecast prior fit (FC.fitPrior) to get the
+// between-category variance tau0Sq + grand mean mu0 from each category's mean
+// cost; then normal-normal conjugacy per category:
+//   shrunkMean = tauPost*(mu0/tau0Sq + catMean/seSq), seSq = withinVar/n.
+// Small-n (noisy) categories pull toward mu0; large-n categories keep catMean.
+// The p50/p90 are shifted by (shrunkMean - catMean) — a location shift, since we
+// only reliably estimate the mean's shrinkage, not the full shape. Stored under
+// categories[cat].shrink; estimate prints raw+shrunk when n_cost < 20.
+function _shrink_categories(categories, cal_by_cat) {
+  const cats = Object.keys(categories);
+  // Cross-category prior: treat each category mean as one "session" observation
+  // (durationHours=1 → rho = mean). sigmaSessionSq=0 → no §5 correction.
+  const priorInput = [];
+  for (const cat of cats) {
+    const costs = cal_by_cat[cat] || [];
+    if (costs.length < 1) continue;
+    const m = costs.reduce((a, b) => a + b, 0) / costs.length;
+    priorInput.push({ uFinal: m, durationHours: 1 });
+  }
+  const prior = FC.fitPrior(priorInput, 0, 1e-9);
+  if (!prior.ok) return; // <2 categories with cost data; nothing to shrink toward
+  const mu0 = prior.mu0, tau0Sq = prior.tau0Sq;
+  for (const cat of cats) {
+    const costs = cal_by_cat[cat] || [];
+    const n = costs.length;
+    if (n < 1) continue;
+    const catMean = costs.reduce((a, b) => a + b, 0) / n;
+    let within = 0;
+    if (n >= 2) {
+      for (const c of costs) { const d = c - catMean; within += d * d; }
+      within /= n - 1;
+    }
+    const seSq = Math.max(within / n, 1e-9);
+    const precPrior = 1 / tau0Sq, precData = 1 / seSq;
+    const tauPostSq = 1 / (precPrior + precData);
+    const shrunkMean = tauPostSq * (mu0 * precPrior + catMean * precData);
+    const shift = shrunkMean - catMean;
+    const weight = precData / (precPrior + precData); // toward-data weight (1=raw)
+    const d = categories[cat];
+    d.shrink = {
+      n,
+      raw_mean: round4(catMean),
+      shrunk_mean: round4(shrunkMean),
+      raw_p50: round4(d.cost.p50),
+      shrunk_p50: round4(Math.max(0, d.cost.p50 + shift)),
+      raw_p90: round4(d.cost.p90),
+      shrunk_p90: round4(Math.max(0, d.cost.p90 + shift)),
+      weight: round4(weight),
+    };
+  }
+}
+
 function _print_priors(p) {
   const cs = p.categories;
   print(`priors -> ${PRIORS_JSON}`);
   print(`sessions=${p.n_sessions} ops=${p.n_ops} cost-calibrated=${p.n_ops_cost_calibrated}`);
   print(
     "category".padEnd(14) + "n".padStart(6) + "$ p50".padStart(9) +
-      "$ p90".padStart(9) + "out p50".padStart(9) + "turns".padStart(7)
+      "$ p90".padStart(9) + "out p50".padStart(9) + "turns".padStart(7) +
+      "p90 cov".padStart(9) + "bias".padStart(9)
   );
   const cats = Object.keys(cs).sort((a, b) => cs[b].cost.p50 - cs[a].cost.p50);
   for (const cat of cats) {
     const d = cs[cat];
+    const cal = d.calibration;
+    const cov = cal ? fixed(cal.p90_coverage, 2) : "—";
+    const bias = cal ? fixed(cal.bias, 3) : "—";
     print(
       cat.padEnd(14) +
         String(d.n).padStart(6) +
         fixed(d.cost.p50, 4).padStart(9) +
         fixed(d.cost.p90, 4).padStart(9) +
         String(Math.trunc(d.out_tok.p50)).padStart(9) +
-        fixed(d.api_turns.p50, 1).padStart(7)
+        fixed(d.api_turns.p50, 1).padStart(7) +
+        cov.padStart(9) +
+        bias.padStart(9)
     );
+  }
+  const flagged = cats.filter((c) => cs[c].calibration && !cs[c].calibration.p90_reliable);
+  if (flagged.length) {
+    printErr(`p90 coverage < 0.70 (estimate p90 unreliable) for: ${flagged.join(", ")}`);
   }
 }
 
@@ -764,6 +1093,25 @@ function cmd_estimate(args) {
     `historical cost:  p50 $${fixed(cost.p50, 2)}   p90 $${fixed(cost.p90, 2)}   mean $${fixed(cost.mean, 2)}`
   );
   print(`typical turns: ${fixed(turns, 0)}   typical output: ${_abbr(d.out_tok.p50)} tok`);
+
+  const sh = d.shrink;
+  if (sh && (d.n_cost ?? 0) < 20) {
+    print(
+      `shrunk (EB, small-n): p50 $${fixed(sh.shrunk_p50, 2)}   p90 $${fixed(sh.shrunk_p90, 2)}   ` +
+      `(raw p50 $${fixed(sh.raw_p50, 2)} / p90 $${fixed(sh.raw_p90, 2)}; data-weight ${fixed(sh.weight, 2)})`
+    );
+  }
+
+  const cal = d.calibration;
+  if (cal) {
+    print(
+      `OOS calibration: p50 cov ${fixed(cal.p50_coverage, 2)}  p90 cov ${fixed(cal.p90_coverage, 2)}  ` +
+      `bias $${fixed(cal.bias, 3)}  pinball p50 $${fixed(cal.pinball_p50, 4)} p90 $${fixed(cal.pinball_p90, 4)}  (n_test ${cal.n_test})` +
+      (cal.p90_reliable ? "" : "  ⚠ p90 unreliable (<0.70)")
+    );
+  } else {
+    print("OOS calibration: — (need ≥15 cost-calibrated ops to hold out)");
+  }
 
   let ctx_tok = args.context_tokens;
   let model = args.model;
@@ -906,16 +1254,28 @@ function _rebuild_stats_csv(excludeSid, files) {
   const rows = [];
   const seen = new Set();
   let with_cost = 0;
+  const cache = _load_totals_cache();
   for (const p of (files || fs.globSync(`${PROJECTS_GLOB}/*/*.jsonl`))) {
     const sid = path.basename(p, ".jsonl");
     if (sid === ZERO_UUID || sid === excludeSid) continue;
     seen.add(sid);
     const ex = existing[sid] || {};
-    const t = session_totals(sid, p);
+    const t = _cached_session_totals(sid, p, cache);
     const st = read_cost_state(sid);
     const stCost = st && st.cost !== null && st.cost !== undefined && st.cost !== "" ? String(st.cost) : "";
     const cost = (ex.total_cost_usd || "").trim() || stCost;
     if (cost) with_cost += 1;
+    // Token-estimated cost for sessions with no billed cost (no statusline).
+    // Kept in a separate column so billed cost — the basis for priors
+    // calibration — is never mixed with estimates. Recomputed each backfill for
+    // no-billed sessions (Phase G: subagent tokens folded in, so the estimate
+    // stays current as the fold / pricing logic changes). Billed sessions skip
+    // it entirely — total_cost_usd wins in the report.
+    let estCost = "";
+    if (!cost) {
+      const c = computed_cost_from_transcript(p);
+      if (c > 0) estCost = c.toFixed(4);
+    }
     const fbNum = (exCol, stKey) => _inum(fwd(ex, exCol)) || (st ? _inum(st[stKey]) : 0);
     const fbRaw = (exCol, stKey) => {
       const ev = fwd(ex, exCol);
@@ -953,6 +1313,7 @@ function _rebuild_stats_csv(excludeSid, files) {
       tool_calls: t.tool_calls,
       start_epoch: t.start_epoch ? Math.trunc(t.start_epoch) : "",
       facets_json: JSON.stringify(t.facets),
+      est_cost_usd: estCost,
     });
   }
   for (const [sid, ex] of Object.entries(existing)) {
@@ -992,6 +1353,7 @@ function _rebuild_stats_csv(excludeSid, files) {
       /* ignore */
     }
   }
+  _save_totals_cache(cache);
   return { sessions: rows.length, with_cost, no_cost: rows.length - with_cost, cleared: removed };
 }
 
@@ -1064,7 +1426,7 @@ export function _load_stats(csvPath = STATS_CSV) {
     sessions.push({
       ts,
       sid: (row.session_id || "").trim(),
-      cost: _fnum(row.total_cost_usd),
+      cost: _fnum(row.total_cost_usd) || _fnum(row.est_cost_usd),
       model: (row.last_model || "").trim(),
       in: i, out: o, cr, cc, tok: i + o + cr + cc,
       dur: _inum(row.duration_ms),
@@ -1096,29 +1458,50 @@ function jsWeekdayPy(d) {
 }
 
 // ---- report freshness ----
-// Rebuild stats.csv before rendering if any non-active transcript or cost-state
-// file is newer than stats.csv (or it's missing). One scan of transcripts +
-// cost-state serves double duty: the newest-touched file within a live window is
-// the active session (statusline renders are frequent during active use), whose
-// mid-flight transcript is excluded so it never pollutes the report; a cold shell
-// after session close yields no active sid, so a hook-missed session's lingering
-// cost-state still integrates. getmtime returns seconds.
+// Active-session detection (Phase I). A session is active — mid-flight, excluded
+// from the report so its incomplete transcript never pollutes it — iff its
+// cost-state/<sid>.json is present AND fresh. The statusline writes cost-state on
+// each render and `record` (SessionEnd) deletes it, so a recent cost-state = live;
+// a stale lingering cost-state = hook-missed (crash) → fold it in, as before.
+// Cost-state mtime tracks statusline activity, which outlives transcript writes
+// across a mid-session pause (transcript mtime only advances on new messages), so
+// it correctly classifies a paused-but-live session that the old 180s
+// transcript-mtime window mislabeled as closed. Fall back to the transcript-mtime
+// window only when no cost-state exists at all (no statusline wired). getmtime
+// returns seconds.
 function _ensure_fresh() {
-  const WIN = 180;
+  const COST_WIN = 900; // cost-state liveness window (tolerates a mid-session pause)
+  const TX_WIN = 180;   // transcript-mtime fallback window (no statusline case)
   const now = Date.now() / 1000;
   const jsonl = fs.globSync(`${PROJECTS_GLOB}/*/*.jsonl`);
-  const scan = [
-    ...jsonl.map((p) => [path.basename(p, ".jsonl"), getmtime(p)]),
-    ...fs.globSync(`${STATE_GLOB}/*.json`).map((p) => [path.basename(p, ".json"), getmtime(p)]),
-  ];
-  let newest = 0, newestSid = null;
-  for (const [sid, m] of scan) {
-    if (m > newest) { newest = m; newestSid = sid; }
+  const stateFiles = fs.globSync(`${STATE_GLOB}/*.json`);
+
+  let active = null;
+  if (stateFiles.length) {
+    // Primary: the freshest cost-state within the liveness window is the live sid.
+    let newest = 0, newestSid = null;
+    for (const p of stateFiles) {
+      const m = getmtime(p);
+      if (m > newest) { newest = m; newestSid = path.basename(p, ".json"); }
+    }
+    if (newestSid && now - newest < COST_WIN) active = newestSid;
+  } else {
+    // Fallback: no cost-state (no statusline) — old transcript-mtime heuristic.
+    let newest = 0, newestSid = null;
+    for (const p of jsonl) {
+      const m = getmtime(p);
+      if (m > newest) { newest = m; newestSid = path.basename(p, ".jsonl"); }
+    }
+    if (newestSid && now - newest < TX_WIN) active = newestSid;
   }
-  const active = newestSid && now - newest < WIN ? newestSid : null;
+
   const csvMtime = isFile(STATS_CSV) ? getmtime(STATS_CSV) : 0;
   let need = csvMtime === 0;
   if (!need) {
+    const scan = [
+      ...jsonl.map((p) => [path.basename(p, ".jsonl"), getmtime(p)]),
+      ...stateFiles.map((p) => [path.basename(p, ".json"), getmtime(p)]),
+    ];
     for (const [sid, m] of scan) {
       if (sid === active) continue;
       if (m > csvMtime) { need = true; break; }
@@ -1134,6 +1517,9 @@ function cmd_report() {
     process.exit(1);
   }
   const c = _load_stats();
+  // Lazy-rebuild the rate-limit forecast (Phase D) so render.mjs embeds a fresh
+  // fit. Pass the loaded sessions for the statusline-rl fallback when OAuth is off.
+  c.forecast = _load_forecast(c.sessions);
   const html_doc = render(c);
   fs.mkdirSync(REPORTS_DIR, { recursive: true });
   const out = path.join(REPORTS_DIR, `report-${reportStamp(new Date())}.html`);
@@ -1167,6 +1553,481 @@ function _open_report(p) {
   } catch {
     /* best-effort */
   }
+}
+
+// ---- fetch-usage (OAuth usage API; off by default) ----
+// Mirrors claumon internal/api/usage.go + internal/auth/credentials.go. Single
+// request, 10s timeout, no retry loop, no token logging. Gated behind
+// USAGE_REPORT_OAUTH=1 / --oauth; without it this is a silent no-op so the
+// skill's local-only default is preserved. Snapshot schema (Phase C/D consume):
+//   { fetched_at, five_hour, seven_day, per_model:{sonnet,opus,design}, extra_usage, raw }
+
+function _oauth_enabled(args) {
+  return args && args.oauth ? true : process.env.USAGE_REPORT_OAUTH === "1";
+}
+
+function _read_access_token() {
+  if (!isFile(CREDENTIALS_PATH)) return null;
+  let f;
+  try {
+    f = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, "utf-8"));
+  } catch {
+    return null;
+  }
+  const tok = f && f.claudeAiOauth && f.claudeAiOauth.accessToken;
+  return typeof tok === "string" && tok ? tok : null;
+}
+
+// Normalize the raw API body into the snapshot shape. Unknown/absent windows → null.
+// ---- rate-limit forecast (Phase D) ----
+// Assembles OAuth usage-snapshots into per-gauge completed windows + the open
+// window, fits the empirical-Bayes prior + calibration (forecast.mjs), runs the
+// projection, and persists state/forecast.json. Refit lazily: when the file is
+// missing, >7d old, or usage-snapshots.jsonl has new data since the last fit.
+// Falls back to a prior-only fit from statusline rl_5h_pct/rl_7d_pct when OAuth
+// polling is off — no open window to project then, but the rate prior still
+// renders so the panel isn't blank for local-only users.
+
+// RFC3339 → epoch seconds; null when unparseable.
+function _parse_reset_at(s) {
+  if (s == null || s === "") return null;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 1000);
+}
+
+// NormalizeResetAt (mirrors claumon store/forecast.go): round to nearest minute,
+// canonical UTC string so snapshots from one drifting window group together.
+function _normalize_reset_at(s) {
+  const e = _parse_reset_at(s);
+  if (e == null) return s || "";
+  const rounded = Math.round(e / 60) * 60;
+  return new Date(rounded * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+// fetched_at is local "YYYY-MM-DD HH:MM:SS" (now_local/parseDateTime use local
+// time). → epoch seconds in the same local interpretation.
+function _fetched_epoch(rec) {
+  const d = parseDateTime(rec.fetched_at);
+  return d ? Math.floor(d.getTime() / 1000) : null;
+}
+
+// Read usage-snapshots.jsonl into memory; skip malformed lines. Returns [] when
+// the file is absent (OAuth off / no fetch yet).
+function _load_usage_snapshots() {
+  if (!isFile(USAGE_SNAPSHOTS_JSONL)) return [];
+  const out = [];
+  for (const line of fs.readFileSync(USAGE_SNAPSHOTS_JSONL, "utf-8").split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    try { out.push(JSON.parse(t)); } catch { /* drop corrupt line */ }
+  }
+  return out;
+}
+
+// Group snapshots into per-gauge windows keyed by normalized resets_at. Each
+// window = {resetSec, resetsAtCanon, snaps:[{t,u}], uFinal}. The open window is
+// the one whose reset is in the future (max resetSec > now); the rest completed.
+function _gauge_windows(snaps, gauge) {
+  const byReset = new Map();
+  for (const rec of snaps) {
+    const w = rec[gauge];
+    if (!w || w.utilization == null || w.resets_at == null) continue;
+    const t = _fetched_epoch(rec);
+    if (t == null) continue;
+    const canon = _normalize_reset_at(w.resets_at);
+    const resetSec = _parse_reset_at(w.resets_at);
+    if (resetSec == null) continue;
+    let win = byReset.get(canon);
+    if (!win) { win = { resetSec, resetsAtCanon: canon, snaps: [] }; byReset.set(canon, win); }
+    win.snaps.push({ t, u: Number(w.utilization) });
+  }
+  const windows = [];
+  for (const win of byReset.values()) {
+    win.snaps.sort((a, b) => a.t - b.t);
+    win.uFinal = win.snaps.reduce((m, s) => Math.max(m, s.u), 0);
+    windows.push(win);
+  }
+  windows.sort((a, b) => a.resetSec - b.resetSec);
+  return windows;
+}
+
+// Fit prior + calibration (two-pass, claumon service.Refit) from completed
+// windows. Returns {prior, calibration, nWindows} or null when <2 usable windows.
+function _fit_gauge(gauge, windows, nowSec, cfg) {
+  const dur = GAUGE_DUR_HOURS[gauge] || 5;
+  const completed = windows.filter((w) => w.resetSec <= nowSec && w.snaps.length >= 2);
+  const fcSessions = completed.map((w) => ({
+    resetSec: w.resetSec, durationHours: dur, uFinal: w.uFinal, snapshots: w.snaps,
+  }));
+  const p1 = FC.fitPrior(fcSessions, 0, cfg.varianceEps);
+  if (!p1.ok) return null;
+  const cal = FC.calibrateSigmaSession(fcSessions, p1, cfg);
+  const p2 = FC.fitPrior(fcSessions, cal.sigmaSessionSq, cfg.varianceEps);
+  const prior = p2.ok ? p2 : p1;
+  return { prior, calibration: cal, nWindows: completed.length };
+}
+
+// Prior-only fit from statusline rl points (fallback when OAuth is off). Each
+// rl-bearing session is one synthetic completed window: uFinal = rl pct,
+// durationHours = nominal window length. No snapshots → no calibration, no
+// open window → no projection, but the rate prior still renders.
+function _fit_gauge_statusline(sessions, gauge) {
+  const key = gauge === "five_hour" ? "rl5" : "rl7";
+  const dur = GAUGE_DUR_HOURS[gauge] || 5;
+  const fcSessions = sessions
+    .filter((s) => s[key] && s[key] > 0)
+    .map((s) => ({ uFinal: s[key], durationHours: dur, snapshots: [] }));
+  const prior = FC.fitPrior(fcSessions, 0, FC.defaultConfig().varianceEps);
+  if (!prior.ok) return null;
+  return { prior, calibration: { sigmaSessionSq: FC.defaultConfig().varianceEps, barTauSq: 0 },
+    nWindows: fcSessions.length, source: "statusline" };
+}
+
+function _forecast_stale(max_age_days = 7) {
+  if (!isFile(FORECAST_JSON)) return true;
+  const fj = getmtime(FORECAST_JSON);
+  if (Date.now() / 1000 - fj > max_age_days * 86400) return true;
+  // New usage snapshots or new transcripts (statusline rl fallback) → refit.
+  if (isFile(USAGE_SNAPSHOTS_JSONL) && getmtime(USAGE_SNAPSHOTS_JSONL) > fj) return true;
+  const newestJsonl = fs.globSync(`${PROJECTS_GLOB}/*/*.jsonl`)
+    .reduce((mx, p) => Math.max(mx, getmtime(p)), 0);
+  return newestJsonl > fj;
+}
+
+// Compute the forecast for both gauges and persist. Returns the payload that
+// render.mjs embeds. `sessions` is the _load_stats() session list (for the
+// statusline fallback); pass null to skip that fallback.
+function _build_forecast(sessions) {
+  const cfg = FC.defaultConfig();
+  const nowSec = Math.floor(Date.now() / 1000);
+  const snaps = _load_usage_snapshots();
+  const out = { fitAt: now_local(), modelVersion: FC.MODEL_VERSION, gauges: {} };
+  for (const gauge of ["five_hour", "seven_day"]) {
+    const windows = _gauge_windows(snaps, gauge);
+    const fit = _fit_gauge(gauge, windows, nowSec, cfg);
+    if (fit) {
+      // Open window = the future reset with the most snapshots (usually the
+      // latest reset_at). Project from its latest snapshot as uNow/nowSec.
+      const open = windows.filter((w) => w.resetSec > nowSec)
+        .sort((a, b) => b.snaps.length - a.snaps.length)[0];
+      let result = null;
+      if (open && open.snaps.length >= 1) {
+        const last = open.snaps[open.snaps.length - 1];
+        const r = FC.runForecast({
+          nowSec: last.t, resetSec: open.resetSec, uNow: last.u,
+          snapshots: open.snaps, prior: fit.prior, calibration: fit.calibration,
+          thresholds: [100, 80],
+        }, cfg);
+        if (r.ok) result = {
+          forecast: r.forecast, posterior: { rHat: r.posterior.rHat, usedOLS: r.posterior.usedOLS, n: r.posterior.n },
+          etas: r.etas, openResetSec: open.resetSec, uNow: last.u, nSnaps: open.snaps.length,
+        };
+      }
+      out.gauges[gauge] = {
+        ok: true, source: "oauth", nWindows: fit.nWindows,
+        prior: { mu0: fit.prior.mu0, tau0Sq: fit.prior.tau0Sq, nSessions: fit.prior.nSessions },
+        calibration: fit.calibration, result,
+      };
+      continue;
+    }
+    // No OAuth history → try the statusline fallback (prior only, no projection).
+    if (sessions) {
+      const fb = _fit_gauge_statusline(sessions, gauge);
+      if (fb) {
+        out.gauges[gauge] = {
+          ok: true, source: fb.source, nWindows: fb.nWindows,
+          prior: { mu0: fb.prior.mu0, tau0Sq: fb.prior.tau0Sq, nSessions: fb.prior.nSessions },
+          calibration: fb.calibration, result: null,
+        };
+        continue;
+      }
+    }
+    out.gauges[gauge] = { ok: false };
+  }
+  fs.writeFileSync(FORECAST_JSON, JSON.stringify(out, null, 2), { encoding: "utf-8", mode: 0o600 });
+  return out;
+}
+
+// Public: lazy-rebuild + read. Called from cmd_report so render.mjs gets a
+// fresh forecast payload alongside the SESSIONS/USAGE_LATEST embeds.
+export function _load_forecast(sessions) {
+  if (_forecast_stale()) _build_forecast(sessions);
+  if (!isFile(FORECAST_JSON)) return null;
+  try { return JSON.parse(fs.readFileSync(FORECAST_JSON, "utf-8")); } catch { return null; }
+}
+
+function cmd_forecast(args) {
+  // Force a refit (--force) or just read+print the persisted fit. The statusline
+  // fallback needs the session list; guard a missing stats.csv so `forecast` still
+  // works from a fresh state dir (OAuth-only).
+  if (args.force) {
+    let sessions = null;
+    if (isFile(STATS_CSV)) {
+      try { sessions = _load_stats().sessions; } catch { sessions = null; }
+    }
+    _build_forecast(sessions);
+  }
+  const f = isFile(FORECAST_JSON) ? JSON.parse(fs.readFileSync(FORECAST_JSON, "utf-8")) : null;
+  if (!f) { printErr("no forecast.json — run: node stats.mjs forecast --force"); process.exit(1); }
+  print(`forecast -> ${FORECAST_JSON}  (model ${f.modelVersion}, fit ${f.fitAt})`);
+  for (const gauge of ["five_hour", "seven_day"]) {
+    const g = f.gauges[gauge];
+    if (!g || !g.ok) { print(`  ${gauge}: no data`); continue; }
+    const p = g.prior;
+    print(`  ${gauge} [${g.source}]: nWindows=${g.nWindows} mu0=${fixed(p.mu0, 3)}%/h tau0^2=${p.tau0Sq.toExponential(2)} sigma^2=${g.calibration.sigmaSessionSq.toExponential(2)}`);
+    if (g.result) {
+      const fc = g.result.forecast;
+      print(`    projected @reset: ${fixed(fc.f, 1)}%  80% CI [${fixed(fc.lower, 1)}, ${fixed(fc.upper, 1)}]  (uNow ${fixed(g.result.uNow, 1)}%, ${g.result.nSnaps} snaps, ${g.result.posterior.usedOLS ? "OLS" : "prior"})`);
+      for (const thr of [100, 80]) {
+        const e = g.result.etas[String(thr)];
+        if (!e) continue;
+        if (e.pInf >= 0.5) print(`    ETA ${thr}%: ${fixed(e.pInf * 100, 0)}% never-crosses`);
+        else print(`    ETA ${thr}%: median ${local_fmt(e.median)} (pInf ${fixed(e.pInf * 100, 0)}%)${e.upper ? '' : '  open-ended'}`);
+      }
+    } else {
+      print(`    no open window to project${g.source === "statusline" ? " (statusline fallback: enable OAuth polling for a projection)" : ""}`);
+    }
+  }
+}
+
+function _map_usage(raw) {
+  const pick = (o) => (o && typeof o === "object")
+    ? { utilization: o.utilization ?? null, resets_at: o.resets_at ?? null }
+    : null;
+  const eu = raw && raw.extra_usage;
+  return {
+    five_hour: pick(raw && raw.five_hour),
+    seven_day: pick(raw && raw.seven_day),
+    per_model: {
+      sonnet: pick(raw && raw.seven_day_sonnet),
+      opus: pick(raw && raw.seven_day_opus),
+      // API key is seven_day_omelette (claumon maps it to "design").
+      design: pick(raw && raw.seven_day_omelette),
+    },
+    extra_usage: eu && typeof eu === "object"
+      ? {
+          is_enabled: eu.is_enabled ?? null,
+          monthly_limit: eu.monthly_limit ?? null,
+          used_credits: eu.used_credits ?? null,
+          utilization: eu.utilization ?? null,
+        }
+      : null,
+  };
+}
+
+async function _do_usage_request(token) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), USAGE_API_TIMEOUT_MS);
+  let resp;
+  try {
+    resp = await fetch(USAGE_API_URL, {
+      headers: {
+        Authorization: "Bearer " + token,
+        "anthropic-beta": USAGE_API_BETA,
+      },
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+  const body = await resp.text();
+  return { status: resp.status, body };
+}
+
+async function cmd_fetch_usage(args) {
+  if (!_oauth_enabled(args)) {
+    // Silent no-op — local-only default. Exit clean so `report`/automation that
+    // calls this unconditionally doesn't error when OAuth is off.
+    process.exit(0);
+  }
+  const token = _read_access_token();
+  if (!token) {
+    printErr("fetch-usage: no OAuth credentials at " + CREDENTIALS_PATH +
+      " (run `claude /login`). Skipping.");
+    process.exit(0);
+  }
+  let resp;
+  try {
+    resp = await _do_usage_request(token);
+  } catch (e) {
+    printErr("fetch-usage: request failed: " + (e && e.message ? e.message : String(e)));
+    process.exit(0);
+  }
+  if (resp.status === 401) {
+    printErr("fetch-usage: auth expired (401) — re-run `claude /login`.");
+    process.exit(0);
+  }
+  if (resp.status === 429) {
+    printErr("fetch-usage: rate limited (429). Retry later.");
+    process.exit(0);
+  }
+  if (resp.status !== 200) {
+    printErr("fetch-usage: API returned " + resp.status + ": " + resp.body.slice(0, 200));
+    process.exit(0);
+  }
+  let raw;
+  try {
+    raw = JSON.parse(resp.body);
+  } catch (e) {
+    printErr("fetch-usage: parse error: " + e.message);
+    process.exit(0);
+  }
+  const usage = _map_usage(raw);
+  const rec = { fetched_at: now_local(), ...usage, raw };
+  if (args.save) {
+    try {
+      fs.appendFileSync(USAGE_SNAPSHOTS_JSONL, JSON.stringify(rec) + "\n",
+        { encoding: "utf-8", mode: 0o600 });
+      fs.writeFileSync(USAGE_LATEST_JSON, JSON.stringify(rec, null, 2),
+        { encoding: "utf-8", mode: 0o600 });
+    } catch (e) {
+      printErr("fetch-usage: write failed: " + e.message);
+      process.exit(0);
+    }
+  }
+  // Summary (never the token). utilization is already in percent (API contract,
+  // matches statusline rate_limits.used_percentage — both stored as percent).
+  const fmt = (w) => w && w.utilization != null
+    ? Number(w.utilization).toFixed(1) + "%"
+    : "—";
+  print("fetched: " + rec.fetched_at);
+  print("  5h:  " + fmt(usage.five_hour) +
+    (usage.five_hour && usage.five_hour.resets_at ? "  resets " + usage.five_hour.resets_at : ""));
+  print("  7d:  " + fmt(usage.seven_day) +
+    (usage.seven_day && usage.seven_day.resets_at ? "  resets " + usage.seven_day.resets_at : ""));
+  for (const m of ["sonnet", "opus", "design"]) {
+    const v = usage.per_model[m];
+    if (v && v.utilization != null) print("  7d." + m + ": " + fmt(v));
+  }
+  if (usage.extra_usage && usage.extra_usage.is_enabled) {
+    print("  extra-usage: enabled  used " + (usage.extra_usage.used_credits ?? "—") +
+      " / " + (usage.extra_usage.monthly_limit ?? "—"));
+  }
+  if (args.save) print("saved → " + USAGE_LATEST_JSON);
+}
+
+// ---- fetch-pricing (live pricing refresh; Phase F, same off-by-default gate as fetch-usage) ----
+// Fetches claumon's remote pricing.json (per-model-id rates), reduces to the
+// skill's family keys (latest model-id per family by version), writes the cache,
+// and re-applies overrides so the active PRICE reflects it. Malformed/empty
+// remote → ignored (silent), embedded table unchanged.
+
+// Parse "claude-opus-4-8" / "claude-sonnet-5" → [4,8] / [5] for version ordering.
+function _model_version_key(id) {
+  const nums = id.match(/(\d+)(?:-(\d+))?/g) || [];
+  const parts = [];
+  for (const seg of nums) {
+    for (const n of seg.split("-")) {
+      const x = parseInt(n, 10);
+      if (!Number.isNaN(x)) parts.push(x);
+    }
+  }
+  return parts.length ? parts : [0];
+}
+
+// Reduce a remote {modelId: {input,output,cache_read,cache_write_5m,...}} map to
+// family → [input, output, cache_read, cache_create(=cache_write_5m)], keeping
+// the highest-version model-id per family (proxy for current rate).
+function _reduce_remote_to_families(models) {
+  const fams = {};
+  for (const [id, p] of Object.entries(models)) {
+    if (!p || typeof p !== "object") continue;
+    const m = id.toLowerCase();
+    let fam = null;
+    for (const k of Object.keys(PRICE)) { if (m.includes(k)) { fam = k; break; } }
+    if (!fam) continue;
+    const rates = [p.input, p.output, p.cache_read, p.cache_write_5m ?? p.cache_write_1h];
+    if (!_is_rate(rates)) continue;
+    const vk = _model_version_key(id);
+    const prev = fams[fam];
+    if (!prev || _cmp_version(vk, prev.vk) > 0) fams[fam] = { rates: rates.map(Number), vk };
+  }
+  const out = {};
+  for (const [f, v] of Object.entries(fams)) out[f] = v.rates;
+  return out;
+}
+
+function _cmp_version(a, b) {
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    const ai = a[i] ?? 0, bi = b[i] ?? 0;
+    if (ai !== bi) return ai - bi;
+  }
+  return 0;
+}
+
+async function cmd_fetch_pricing(args) {
+  if (!_oauth_enabled(args)) {
+    process.exit(0); // silent no-op — local-only default, same as fetch-usage
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), PRICING_FETCH_TIMEOUT_MS);
+  let resp;
+  try {
+    resp = await fetch(PRICING_REMOTE_URL, { signal: ctrl.signal });
+  } catch (e) {
+    printErr("fetch-pricing: request failed: " + (e && e.message ? e.message : String(e)));
+    process.exit(0);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (resp.status !== 200) {
+    printErr("fetch-pricing: remote returned " + resp.status);
+    process.exit(0);
+  }
+  let body;
+  try { body = await resp.text(); } catch (e) {
+    printErr("fetch-pricing: read failed: " + e.message);
+    process.exit(0);
+  }
+  if (body.length > 1 << 20) { printErr("fetch-pricing: remote > 1MB, ignored"); process.exit(0); }
+  let parsed;
+  try { parsed = JSON.parse(body); } catch (e) {
+    printErr("fetch-pricing: parse error: " + e.message);
+    process.exit(0);
+  }
+  const models = parsed && parsed.models && typeof parsed.models === "object" ? parsed.models : null;
+  if (!models || !Object.keys(models).length) {
+    printErr("fetch-pricing: remote has no models, ignored");
+    process.exit(0);
+  }
+  const base = _reduce_remote_to_families(models);
+  if (!Object.keys(base).length) {
+    printErr("fetch-pricing: no recognized families in remote, ignored");
+    process.exit(0);
+  }
+  const cache = { updated: now_local(), source: PRICING_REMOTE_URL, base };
+  try {
+    fs.writeFileSync(PRICING_CACHE_JSON, JSON.stringify(cache, null, 2),
+      { encoding: "utf-8", mode: 0o600 });
+  } catch (e) {
+    printErr("fetch-pricing: write failed: " + e.message);
+    process.exit(0);
+  }
+  // Re-apply so the live process reflects the refresh (cache → promos → manual).
+  _apply_price_overrides();
+  print("fetched pricing: " + cache.updated + "  (" + Object.keys(models).length + " models → " +
+    Object.keys(base).length + " families)");
+  for (const f of Object.keys(PRICE)) {
+    print("  " + f.padEnd(8) + "$" + PRICE[f][0] + "/" + PRICE[f][1] + "  (cache " + (base[f] ? "set" : "—") + ")");
+  }
+  print("saved → " + PRICING_CACHE_JSON);
+}
+
+// ---- pricing diagnostic (Phase F): print the resolved table + which layer set it ----
+function cmd_pricing() {
+  const cache = _load_pricing_cache();
+  print("resolved pricing ($/MTok [input, output, cache_read, cache_create]):");
+  for (const f of Object.keys(PRICE)) {
+    const tags = [];
+    if (cache && cache.base && cache.base[f]) tags.push("cache");
+    const promo = PROMOS.find((p) => p.family === f && _promo_active(p));
+    if (promo) tags.push("promo→" + promo.expires);
+    if (isFile(PRICE_OVERRIDE_JSON)) tags.push("override?");
+    print("  " + f.padEnd(8) + JSON.stringify(PRICE[f]) + (tags.length ? "  [" + tags.join(",") + "]" : "  [embedded]"));
+  }
+  if (cache) print("cache: " + cache.updated + " (fresh) → " + PRICING_CACHE_JSON);
+  else print("cache: absent or stale (>24h) → embedded + promos only");
 }
 
 // ---- install (cross-machine setup) ----
@@ -1327,11 +2188,11 @@ function fixed(n, d) {
 
 // ---- CLI dispatch ----
 
-function main() {
+async function main() {
   const argv = process.argv.slice(2);
   const cmd = argv[0];
   if (!cmd) {
-    printErr("usage: stats.mjs {record,backfill,report,priors,install,estimate}");
+    printErr("usage: stats.mjs {record,backfill,report,priors,install,estimate,fetch-usage,fetch-pricing,forecast,pricing}");
     process.exit(2);
   }
   if (cmd === "record") {
@@ -1349,6 +2210,17 @@ function main() {
       with_statusline: argv.includes("--with-statusline"),
     };
     cmd_install(args);
+  } else if (cmd === "fetch-usage") {
+    await cmd_fetch_usage({
+      save: argv.includes("--save"),
+      oauth: argv.includes("--oauth"),
+    });
+  } else if (cmd === "forecast") {
+    cmd_forecast({ force: argv.includes("--force") });
+  } else if (cmd === "fetch-pricing") {
+    await cmd_fetch_pricing({ oauth: argv.includes("--oauth") });
+  } else if (cmd === "pricing") {
+    cmd_pricing();
   } else if (cmd === "estimate") {
     const rest = argv.slice(1);
     const args = { category: null, context_tokens: null, model: null, no_refresh: false };
@@ -1374,5 +2246,8 @@ function main() {
 
 // Only dispatch the CLI when invoked directly (not on import).
 if (process.argv[1] && fs.realpathSync(process.argv[1]) === SCRIPT) {
-  main();
+  main().catch((e) => {
+    printErr(String(e && e.message ? e.message : e));
+    process.exit(1);
+  });
 }

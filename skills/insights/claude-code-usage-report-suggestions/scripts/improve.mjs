@@ -146,6 +146,37 @@ async function build_roadmap() {
     "(Claude Code v2.1.80+, Claude.ai Pro/Max only — absent for API-key/Bedrock/Vertex " +
     "and some Max 20x oauth users). Coverage grows as sessions record; efficient-use " +
     "judgment firms up once a full 7-day window is captured.");
+  add("Rate-limit forecast", "done",
+    "Empirical-Bayes forecast (claumon MODEL v2.1 port, forecast.mjs) projects each " +
+    "gauge to its reset boundary with an 80% credible interval + ETA-to-threshold, " +
+    "fit from OAuth usage-snapshots; prior-only statusline-rl fallback when OAuth is off. " +
+    "`stats.mjs forecast [--force]` prints/forces the fit (state/forecast.json).");
+  add("Prior calibration", "done",
+    "Out-of-sample audit of the percentile cost priors (Phase E): hold out the most " +
+    "recent ~20% of cost-calibrated ops per category, refit p50/p90, score coverage / " +
+    "bias / pinball. Printed by `priors` (p90 cov / bias columns) and `estimate` (OOS " +
+    "calibration row); p90 coverage < 0.70 flagged as unreliable.");
+  add("Live pricing refresh", "done",
+    "Layered pricing (Phase F): embedded PRICE → 24h cache (state/pricing-cache.json, " +
+    "from `fetch-pricing --oauth`) → time-bounded PROMOS → manual pricing.json override. " +
+    "Sonnet 5 intro $2/$10 reflected via PROMOS through 2026-08-31. `fetch-pricing --oauth` " +
+    "pulls claumon's remote, reduces model-ids to family keys; `pricing` prints the resolved table.");
+  add("Subagent tokens in est cost", "done",
+    "Phase G: est_cost_usd (no-billed sessions) now folds in subagent-run transcript " +
+    "tokens, summed per assistant message with _msg_cost_tiered. The isSidechain skip is " +
+    "scoped to the main transcript (subagent files are themselves the sidechain). Billed " +
+    "sessions unchanged; priors still calibrate on billed only.");
+  add("EB shrinkage in estimate", "done",
+    "Phase H: small-n category cost priors are shrunk toward a cross-category grand " +
+    "mean (FC.fitPrior between-category variance + normal-normal conjugacy; shift scaled " +
+    "by per-category withinVar/n). Stored per category as `shrink`; `estimate` prints a " +
+    "`shrunk (EB, small-n)` row when n_cost < 20. Large-n categories keep raw (data-weight≈1).");
+  add("Active-session detection", "done",
+    "Phase I: report excludes the mid-flight session via cost-state freshness (statusline " +
+    "rewrites cost-state/<sid>.json per render; fresh <900s = live) instead of the old 180s " +
+    "transcript-mtime window, which mislabeled a paused-but-live session as closed and folded " +
+    "its incomplete transcript in. Stale lingering cost-state (hook-missed) still folds in; " +
+    "180s transcript-mtime fallback kept for the no-statusline case.");
   if (inv.archive === 0) {
     add("Statusline archive", "partial",
       "sessions.jsonl is empty — the full-JSON archive fills as new sessions end; future " +

@@ -24,7 +24,7 @@
     els.forEach(function(e){ io.observe(e); });
   }
 
-  /* ambient glow: drifting radial gradients, matched to the warm palette */
+  /* ambient glow: drifting radial gradients, matched to the zapac purple→cyan identity */
   function toRGBA(c, a){
     c = (c || '').trim();
     if(c[0] === '#'){
@@ -42,7 +42,7 @@
     var ctx = canvas.getContext('2d'); if(!ctx) return;
     var dpr = Math.min(devicePixelRatio || 1, 1.5), W, H, raf;
     var col = {};
-    function readCol(){ col.paper = css('--paper'); col.c1 = css('--clay'); col.c2 = css('--amber'); col.c3 = css('--azure'); }
+    function readCol(){ col.paper = css('--paper'); col.c1 = css('--clay'); col.c2 = css('--azure'); col.c3 = css('--cyan'); }
     function size(){ W = innerWidth; H = innerHeight; canvas.width = W*dpr; canvas.height = H*dpr; canvas.style.width = W+'px'; canvas.style.height = H+'px'; ctx.setTransform(dpr,0,0,dpr,0,0); }
     readCol(); size(); addEventListener('resize', size);
     /* [relX, relY, radiusFactor, colorKey, phase, speed] */
@@ -89,18 +89,30 @@
       var list = filterSessions(range);
       var cost=0, tok=0, models={};
       list.forEach(function(s){ cost+=s.cost||0; tok+=s.tok||0; if(s.model) models[s.model]=1; });
-      el('flagSessions').textContent = fmtInt(list.length);
-      el('flagTokens').textContent = fmtAbbr(tok);
-      el('flagModels').textContent = Object.keys(models).length;
       var ap = document.querySelector('.range-preset.active');
       el('flagRange').textContent = ap ? ap.textContent.toLowerCase() : (range.from + ' → ' + range.to);
       var fn = el('flagNum');
       if(firstFlag && !REDUCED){
         firstFlag = false;
         tween(cost, function(v){ fn.textContent = money(v); });
+        tween(list.length, function(v){ el('flagSessions').textContent = fmtInt(Math.round(v)); });
+        tween(tok, function(v){ el('flagTokens').textContent = fmtAbbr(Math.round(v)); });
+        tween(Object.keys(models).length, function(v){ el('flagModels').textContent = Math.round(v); });
       }else{
         firstFlag = false;
         fn.textContent = money(cost);
+        el('flagSessions').textContent = fmtInt(list.length);
+        el('flagTokens').textContent = fmtAbbr(tok);
+        el('flagModels').textContent = Object.keys(models).length;
+      }
+      /* TrendChip: last 7d vs prior 7d spend (fixed windows over all sessions). */
+      var tr = el('heroTrend');
+      if(tr){
+        var last7=0, prior7=0, to=LAST_DATE, p7a=addDays(to,-13), p7b=addDays(to,-7), l7a=addDays(to,-6);
+        SESSIONS.forEach(function(s){ var d=s.ts.slice(0,10), c=s.cost||0;
+          if(d>=l7a && d<=to) last7+=c; else if(d>=p7a && d<=p7b) prior7+=c; });
+        var dp = prior7>0 ? (last7-prior7)/prior7*100 : null;
+        tr.innerHTML = trendChip(dp);
       }
     }catch(e){}
   }
