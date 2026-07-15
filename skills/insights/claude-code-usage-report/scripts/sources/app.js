@@ -427,7 +427,7 @@ function renderHero(agg,st,firstDate){
   var hourTip="$/hour = cost of $0-cost-excluded sessions / active hours (sum of per-session duration, uncapped). duration_ms is the transcript wall-clock span (first->last event), so sessions left open for days (idle/hung, e.g. 577h @ $0) are excluded by the $0-cost filter. Long-but-real sessions count fully.";
   // flagcard sparkline (replaces the delta caption in the header card)
   var fspk=el('flagSpark');
-  if(fspk)fspk.innerHTML=sparkline(st.series,'var(--ac)')+"<div class='sub2'>last 30 days</div>";
+  if(fspk)fspk.innerHTML=sparkline(st.series,'var(--ac)');
   // efficiency ratios: bold rate readouts — figure + clay slash-unit + caption
   var eff=el('sec-eff-ratios');
   if(eff){

@@ -105,14 +105,20 @@
         el('flagTokens').textContent = fmtAbbr(tok);
         el('flagModels').textContent = Object.keys(models).length;
       }
-      /* TrendChip: last 7d vs prior 7d spend (fixed windows over all sessions). */
+      /* TrendChip: selected preset vs equal-width prior window (over all sessions).
+         Shown only for 'last 7 days' / 'last 30 days'; hidden for 'all time' and custom ranges. */
       var tr = el('heroTrend');
       if(tr){
-        var last7=0, prior7=0, to=LAST_DATE, p7a=addDays(to,-13), p7b=addDays(to,-7), l7a=addDays(to,-6);
-        SESSIONS.forEach(function(s){ var d=s.ts.slice(0,10), c=s.cost||0;
-          if(d>=l7a && d<=to) last7+=c; else if(d>=p7a && d<=p7b) prior7+=c; });
-        var dp = prior7>0 ? (last7-prior7)/prior7*100 : null;
-        tr.innerHTML = trendChip(dp);
+        tr.innerHTML = '';
+        var p = range.preset;
+        if(p==='7d'||p==='30d'){
+          var N = p==='7d'?7:30;
+          var last=0, prior=0, pf=addDays(range.to,-(2*N-1)), pt=addDays(range.to,-N);
+          SESSIONS.forEach(function(s){ var d=s.ts.slice(0,10), c=s.cost||0;
+            if(d>=range.from && d<=range.to) last+=c; else if(d>=pf && d<=pt) prior+=c; });
+          var dp = prior>0 ? (last-prior)/prior*100 : null;
+          tr.innerHTML = trendChip(dp);
+        }
       }
     }catch(e){}
   }

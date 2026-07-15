@@ -11,7 +11,7 @@
 // Invoke explicitly: `node statusline.mjs` (Node is guaranteed on PATH; shebang
 // is not honoured on Windows).
 import { mkdirSync, writeFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { homedir } from "node:os";
 import { execFileSync } from "node:child_process";
 
@@ -182,6 +182,13 @@ if (currentDir && isDir(currentDir)) {
 
 const dirDisplay = repoRoot || "";
 
+// --- Skill-scopes (added via --add-dir; only dirs under ~/.agents/skill-scopes) ---
+const scopesRoot = join(homedir(), ".agents", "skill-scopes");
+const scopes = (g("workspace", "added_dirs") || [])
+  .filter((p) => typeof p === "string" && p.startsWith(scopesRoot))
+  .map((p) => basename(p))
+  .filter(Boolean);
+
 // --- Output (two lines); only include segments that have data ---
 const p1 = [`🤖 ${model}`, `🧠 ${usageSeg}`, `💰 ${costStr}`];
 if (rateLimitStr) p1.push(`⏱️ ${rateLimitStr}`);
@@ -190,6 +197,7 @@ const line1 = p1.join(" | ");
 const p2 = [`📁 ${dirDisplay}`];
 if (worktree) p2.push(`🌳 ${worktree}`);
 p2.push(`🌿 ${gitStr}`);
+if (scopes.length) p2.push(`🧩 ${scopes.join(",")}`);
 const line2 = p2.join(" | ");
 
 process.stdout.write(line1 + "\n" + line2);
