@@ -178,11 +178,15 @@ function shareBars(months,cmap){
   var rows='';keys.forEach(function(k){var cbm=months[k].cost_by_model;var tot=Object.keys(cbm).reduce(function(a,m){return a+cbm[m];},0)||1;var segs='';Object.keys(cbm).sort(function(a,b){return cbm[b]-cbm[a];}).forEach(function(m){var w=cbm[m]/tot*100;if(w<=0)return;segs+="<div class='seg' style='width:"+w.toFixed(3)+"%;background:"+(cmap[m]||'var(--ink-faint)')+"' data-tip='"+escAttr(m)+" · "+w.toFixed(1)+"%'></div>";});rows+="<div class='bar-row'><div class='bar-label'>"+esc(k)+"</div><div class='sbar-track'>"+segs+"</div><div class='bar-val'>$"+Math.round(tot)+"</div></div>";});
   return rows;
 }
-function periodTable(bucket,label){
+function periodTable(bucket,label,active){
   var keys=Object.keys(bucket).sort().reverse();if(!keys.length)return '<p class="muted">No data.</p>';
+  var filt=active&&active.size;
   var head="<tr><th>"+esc(label)+"</th><th class='n'>Sessions</th><th class='n'>Cost $</th><th class='n'>Input tok</th><th class='n'>Output tok</th><th class='n'>Cache read</th><th class='n'>Cache create</th></tr>";
   var body='',tot={sessions:0,cost:0,in:0,out:0,cr:0,cc:0};
-  keys.forEach(function(k){var d=bucket[k];body+="<tr><td>"+esc(k)+"</td><td class='n'>"+d.sessions+"</td><td class='n'>"+d.cost.toFixed(2)+"</td><td class='n'>"+fmtInt(d.in)+"</td><td class='n'>"+fmtInt(d.out)+"</td><td class='n'>"+fmtInt(d.cr)+"</td><td class='n'>"+fmtInt(d.cc)+"</td></tr>";tot.sessions+=d.sessions;tot.cost+=d.cost;tot.in+=d.in;tot.out+=d.out;tot.cr+=d.cr;tot.cc+=d.cc;});
+  keys.forEach(function(k){var d=bucket[k],r;
+    if(filt){r={sessions:0,cost:0,in:0,out:0,cr:0,cc:0};var bm=d.by_model||{};Object.keys(bm).forEach(function(m){if(!active.has(m))return;var x=bm[m];r.sessions+=x.sessions;r.cost+=x.cost;r.in+=x.in;r.out+=x.out;r.cr+=x.cr;r.cc+=x.cc;});if(!r.sessions&&!r.cost)return;}
+    else r=d;
+    body+="<tr><td>"+esc(k)+"</td><td class='n'>"+r.sessions+"</td><td class='n'>"+r.cost.toFixed(2)+"</td><td class='n'>"+fmtInt(r.in)+"</td><td class='n'>"+fmtInt(r.out)+"</td><td class='n'>"+fmtInt(r.cr)+"</td><td class='n'>"+fmtInt(r.cc)+"</td></tr>";tot.sessions+=r.sessions;tot.cost+=r.cost;tot.in+=r.in;tot.out+=r.out;tot.cr+=r.cr;tot.cc+=r.cc;});
   body+="<tr class='total'><td>Total</td><td class='n'>"+tot.sessions+"</td><td class='n'>"+tot.cost.toFixed(2)+"</td><td class='n'>"+fmtInt(tot.in)+"</td><td class='n'>"+fmtInt(tot.out)+"</td><td class='n'>"+fmtInt(tot.cr)+"</td><td class='n'>"+fmtInt(tot.cc)+"</td></tr>";
   return "<table class='tbl'>"+head+body+"</table>";
 }
@@ -393,8 +397,9 @@ function aggregate(S){
     t.sessions++;t.cost+=s.cost;t.in+=s.in;t.out+=s.out;t.cr+=s.cr;t.cc+=s.cc;t.dur+=s.dur;t.api+=s.api;t.la+=s.la;t.lr+=s.lr;t.turns+=s.turns;t.tools+=s.tools;
     if(s.model){if(!modelSet[s.model]){modelSet[s.model]=1;models.push(s.model);}var pm=per_model[s.model]||(per_model[s.model]={sessions:0,cost:0,tokens:0,in:0,out:0,cr:0,cc:0});pm.sessions++;pm.cost+=s.cost;pm.tokens+=s.tok;pm.in+=s.in;pm.out+=s.out;pm.cr+=s.cr;pm.cc+=s.cc;}
     var dk=s.ts.slice(0,10),mk=s.ts.slice(0,7);
-    if(dk){var dd=days[dk]||(days[dk]={sessions:0,cost:0,in:0,out:0,cr:0,cc:0,api:0,dur:0,cost_by_model:{}});dd.sessions++;dd.cost+=s.cost;dd.in+=s.in;dd.out+=s.out;dd.cr+=s.cr;dd.cc+=s.cc;dd.api+=s.api||0;dd.dur+=s.dur||0;if(s.cost){var mm=s.model||'others';dd.cost_by_model[mm]=(dd.cost_by_model[mm]||0)+s.cost;}}
-    if(mk){var mo=months[mk]||(months[mk]={sessions:0,cost:0,in:0,out:0,cr:0,cc:0,cost_by_model:{}});mo.sessions++;mo.cost+=s.cost;mo.in+=s.in;mo.out+=s.out;mo.cr+=s.cr;mo.cc+=s.cc;if(s.cost){var mm2=s.model||'others';mo.cost_by_model[mm2]=(mo.cost_by_model[mm2]||0)+s.cost;}}
+    var bmk=s.model||'others';
+    if(dk){var dd=days[dk]||(days[dk]={sessions:0,cost:0,in:0,out:0,cr:0,cc:0,api:0,dur:0,cost_by_model:{},by_model:{}});dd.sessions++;dd.cost+=s.cost;dd.in+=s.in;dd.out+=s.out;dd.cr+=s.cr;dd.cc+=s.cc;dd.api+=s.api||0;dd.dur+=s.dur||0;if(s.cost)dd.cost_by_model[bmk]=(dd.cost_by_model[bmk]||0)+s.cost;var dbm=dd.by_model[bmk]||(dd.by_model[bmk]={sessions:0,cost:0,in:0,out:0,cr:0,cc:0});dbm.sessions++;dbm.cost+=s.cost;dbm.in+=s.in;dbm.out+=s.out;dbm.cr+=s.cr;dbm.cc+=s.cc;}
+    if(mk){var mo=months[mk]||(months[mk]={sessions:0,cost:0,in:0,out:0,cr:0,cc:0,cost_by_model:{},by_model:{}});mo.sessions++;mo.cost+=s.cost;mo.in+=s.in;mo.out+=s.out;mo.cr+=s.cr;mo.cc+=s.cc;if(s.cost)mo.cost_by_model[bmk]=(mo.cost_by_model[bmk]||0)+s.cost;var mbm=mo.by_model[bmk]||(mo.by_model[bmk]={sessions:0,cost:0,in:0,out:0,cr:0,cc:0});mbm.sessions++;mbm.cost+=s.cost;mbm.in+=s.in;mbm.out+=s.out;mbm.cr+=s.cr;mbm.cc+=s.cc;}
     var fc=s.facets;
     if(fc){
       if(fc.t){for(var nm in fc.t){usage.tools[nm]=(usage.tools[nm]||0)+fc.t[nm];}}
@@ -481,12 +486,10 @@ function render(range){
     noteRow('ok',"<path d='M18 5H6l6 7-6 7h12'/>",fmtMoney(t.cost),"total to date")+
   "</div>";
   el('sec-cal').innerHTML=calMonth(agg.days,range.to);
-  // breakdown
-  _draw();
-  el('day-table').innerHTML=periodTable(agg.days,'Date');
-  el('month-table').innerHTML=periodTable(agg.months,'Month');
+  // breakdown (bars + tables both honor the model filter)
+  CUR_AGG=agg;_draw();
   // token economics (legend pills filter the composition bars)
-  CUR_AGG=agg;renderTok();
+  renderTok();
   var totTok=t.in+t.out+t.cr+t.cc;
   el('tok-mix').innerHTML=donutHtml(CFG.TOKEN.map(function(tk){return {k:tk.name,v:t[tk.key],c:tk.col};}),fmtAbbr(totTok),'tokens');
   var ccKeys=Object.keys(agg.days).filter(isDate).sort().reverse();
@@ -598,7 +601,8 @@ function _legend(){
   target.querySelector('.lg-all').onclick=function(){ACTIVE=new Set();_draw();};
 }
 function _toggle(m){if(ACTIVE.has(m))ACTIVE.delete(m);else ACTIVE.add(m);_draw();}
-function _draw(){_legend();_chart(el('day-chart'),CHART.day);_chart(el('month-chart'),CHART.month);}
+function _tables(){if(!CUR_AGG)return;el('day-table').innerHTML=periodTable(CUR_AGG.days,'Date',ACTIVE);el('month-table').innerHTML=periodTable(CUR_AGG.months,'Month',ACTIVE);}
+function _draw(){_legend();_chart(el('day-chart'),CHART.day);_chart(el('month-chart'),CHART.month);_tables();}
 
 // ---- token-legend filter (token composition bars) ----
 // SEMANTIC IS SOLO/DESELECT, NOT independent show/hide — confirmed correct, do NOT "fix":

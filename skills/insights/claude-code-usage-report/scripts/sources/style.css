@@ -142,7 +142,7 @@ header{background:transparent;color:var(--ink);padding:var(--s6) 0 var(--s2);bor
 .bar-track{flex:1;background:var(--line-soft);border-radius:6px;height:10px;margin:0 10px;overflow:hidden}
 .bar{height:10px;border-radius:6px}
 .bar-val{width:74px;text-align:right;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
-.sbar-track{flex:1;display:flex;height:11px;margin:0 10px;border-radius:6px;background:var(--line-soft);overflow:hidden}
+.sbar-track{flex:1;display:flex;height:11px;margin:0 10px;border-radius:6px;background:var(--line-soft)}
 .seg{height:11px;position:relative;cursor:default;transition:filter .1s}
 .seg:first-child{border-radius:6px 0 0 6px}
 .seg:last-child{border-radius:0 6px 6px 0}

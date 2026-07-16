@@ -498,6 +498,16 @@ const PRICE = {
   sonnet: [3.0, 15.0, 0.3, 3.75],
   haiku: [1.0, 5.0, 0.1, 1.25],
   fable: [10.0, 50.0, 1.0, 12.5],
+  // Non-Anthropic models routed through CC (proxy/:cloud tags). Priced from
+  // provider docs so their sessions (no billed total_cost_usd → est-only) attribute
+  // correctly. _price_key does substring match in insertion order — keep the more
+  // specific glm-5.2/glm-5.1 ABOVE glm-5 so "glm-5.2:cloud" matches 5.2, not 5.
+  // cache_create=0: GLM cache-write "limited-time free" (docs.z.ai), Kimi has no
+  // cache-write fee. Bump if those promos end.
+  "glm-5.2": [1.4, 4.4, 0.26, 0.0], // docs.z.ai/guides/overview/pricing
+  "glm-5.1": [1.4, 4.4, 0.26, 0.0], // docs.z.ai
+  "glm-5": [1.0, 3.2, 0.2, 0.0], // docs.z.ai
+  "kimi-k2.7-code": [0.95, 4.0, 0.19, 0.0], // kimi.com/resources/kimi-k2-7-code-pricing
 };
 const DEFAULT_PRICE_KEY = "opus";
 
@@ -618,6 +628,16 @@ function _price_key(model) {
     if (m.includes(k)) return k;
   }
   return DEFAULT_PRICE_KEY;
+}
+
+// Anthropic-family price keys. Any other PRICE key (glm/kimi/…) is a third-party
+// model reached via a proxy or :cloud tag: Claude Code's billed total_cost_usd
+// for those uses the wrong rates, so the report recomputes cost from tokens with
+// the PRICE table instead. Unknown models resolve to DEFAULT_PRICE_KEY (opus, an
+// Anthropic key) → treated as Anthropic, never overridden.
+const _ANTHROPIC_PRICE_KEYS = new Set(["opus", "sonnet", "haiku", "fable"]);
+function _is_third_party(model) {
+  return !_ANTHROPIC_PRICE_KEYS.has(_price_key(model));
 }
 
 function _msg_cost(model, i, o, cr, cc) {
@@ -1426,7 +1446,9 @@ export function _load_stats(csvPath = STATS_CSV) {
     sessions.push({
       ts,
       sid: (row.session_id || "").trim(),
-      cost: _fnum(row.total_cost_usd) || _fnum(row.est_cost_usd),
+      cost: _is_third_party(row.last_model)
+        ? _msg_cost(row.last_model, i, o, cr, cc)
+        : (_fnum(row.total_cost_usd) || _fnum(row.est_cost_usd)),
       model: (row.last_model || "").trim(),
       in: i, out: o, cr, cc, tok: i + o + cr + cc,
       dur: _inum(row.duration_ms),
