@@ -469,7 +469,7 @@ function renderHero(agg,st,firstDate){
 function render(range){
   var S=filterSessions(range);
   var agg=aggregate(S);
-  if(!agg.n){var msg='<p class="muted">No sessions in selected range.</p>';['kpi','sec-cumulative','sec-runrate','sec-cal','sec-eff-ratios','day-chart','month-chart','day-table','month-table','tok-day-bars','tok-month-bars','tok-mix','cc-ratio','sec-eff-models','sec-throughput','sec-ratelimits','sec-model-quotas','sec-forecast','sec-dayhour','sec-scatter','sec-pareto','sec-toptable','sec-treemap','sec-model-sessions','sec-model-cost','sec-share','sec-usage-stats','sec-tools','sec-agents','sec-skills','sec-proj-cost','sec-proj-sess'].forEach(function(id){var e=el(id);if(e)e.innerHTML=msg;});el('tok-legend').innerHTML='';return;}
+  if(!agg.n){var msg='<p class="muted">No sessions in selected range.</p>';['kpi','sec-cumulative','sec-runrate','sec-cal','sec-eff-ratios','day-chart','month-chart','day-table','month-table','tok-day-bars','tok-month-bars','tok-mix','cc-ratio','sec-eff-models','sec-throughput','sec-ratelimits','sec-token-yield','sec-token-yield-summary','sec-model-quotas','sec-forecast','sec-dayhour','sec-scatter','sec-pareto','sec-toptable','sec-treemap','sec-model-sessions','sec-model-cost','sec-share','sec-usage-stats','sec-tools','sec-agents','sec-skills','sec-proj-cost','sec-proj-sess'].forEach(function(id){var e=el(id);if(e)e.innerHTML=msg;});el('tok-legend').innerHTML='';el('ty-legend').innerHTML='';return;}
   var st=deriveStats(agg,range),t=agg.totals;
   var chartModels=agg.models.slice();
   var hasOthers=Object.keys(agg.days).some(function(k){return 'others' in agg.days[k].cost_by_model;})||Object.keys(agg.months).some(function(k){return 'others' in agg.months[k].cost_by_model;});
@@ -517,6 +517,8 @@ function render(range){
   el('sec-model-quotas').innerHTML=renderModelQuotas(USAGE_LATEST);
   // rate-limit forecast at reset (EB model, OAuth snapshots + statusline fallback)
   el('sec-forecast').innerHTML=renderForecast(FORECAST);
+  // token yield per rate-limit % (per-model deltas of the 5h/7d gauge)
+  renderTY();
   // when you work
   el('sec-dayhour').innerHTML=dayhourHeatmap(agg.sessions);
   // sessions
@@ -625,6 +627,88 @@ function renderTok(){
   var vis=tokVis();
   el('tok-day-bars').innerHTML=tokenBars(CUR_AGG.days,vis);
   el('tok-month-bars').innerHTML=tokenBars(CUR_AGG.months,vis);
+}
+
+// ---- token yield per rate-limit % (5h/7d) ----
+// "% usage" (r5/r7) is an account-global, CUMULATIVE gauge reading at session end
+// — not per-model, not a per-session increment. So a raw tok/pct is wrong. Instead:
+// walk rl-bearing sessions in global time order, take per-session gauge DELTAS
+// (drop => window reset, delta = current pct), attribute each delta to that
+// session's own model, then efficiency = Sum(tokens)/Sum(delta%) = Mtok per 1%.
+// Aggregate ratio (not per-session) avoids divide-by-zero; skip when Sum(delta)<0.05.
+function tokenYield(S,gk){
+  // Claude models only: r5/r7 is the shared Claude account 5h/7d quota. Non-Claude models
+  // (glm/ollama/etc.) don't draw from it — their gauge reading is just the ambient Claude
+  // value, so their tokens/delta would be meaningless. Excluding them also keeps the delta
+  // chain coherent: a Claude session after a non-Claude gap compares to the prior Claude reading.
+  var rl=S.filter(function(s){return s[gk]>0&&/^claude/i.test(s.model||'');}).slice().sort(function(a,b){return a.ts<b.ts?-1:a.ts>b.ts?1:0;});
+  var sumT={},sumD={},aggT={},aggD={},prev=null;
+  rl.forEach(function(s){
+    var pct=s[gk],d=(prev==null)?pct:(pct>=prev?pct-prev:pct);prev=pct;
+    if(d<=0)return;
+    var m=s.model,day=s.ts.slice(0,10);
+    (sumT[m]=sumT[m]||{})[day]=(sumT[m][day]||0)+s.tok;
+    (sumD[m]=sumD[m]||{})[day]=(sumD[m][day]||0)+d;
+    aggT[m]=(aggT[m]||0)+s.tok;aggD[m]=(aggD[m]||0)+d;
+  });
+  var series={},agg={},models=[],dayset={};
+  Object.keys(aggT).forEach(function(m){
+    if(aggD[m]<0.05)return;
+    series[m]={};var td=sumT[m],dd=sumD[m];
+    Object.keys(td).forEach(function(day){if(dd[day]<0.05)return;series[m][day]={e:(td[day]/1e6)/dd[day],t:td[day],d:dd[day]};dayset[day]=1;});
+    agg[m]={e:(aggT[m]/1e6)/aggD[m],t:aggT[m],d:aggD[m]};
+    models.push(m);
+  });
+  models.sort();
+  return {days:Object.keys(dayset).sort(),series:series,agg:agg,models:models};
+}
+function svgTokenYield(data,cmap,vis){
+  var days=data.days,n=days.length;
+  var models=data.models.filter(function(m){return vis.has(m);});
+  if(!n||!models.length)return '<p class="muted">No data for selected models.</p>';
+  var ymax=0;models.forEach(function(m){days.forEach(function(d){var c=data.series[m][d];if(c&&c.e>ymax)ymax=c.e;});});
+  ymax=ymax||1;
+  var W=1000,H=220,P=48,s=scaler(0,Math.max(n-1,1),0,ymax,W,H,P),fx=s[0],fy=s[1];
+  var axes="<line class='axis' x1='"+P+"' y1='"+(H-P)+"' x2='"+(W-P)+"' y2='"+(H-P)+"'/>"+
+           "<line class='axis' x1='"+P+"' y1='"+P+"' x2='"+P+"' y2='"+(H-P)+"'/>";
+  var yticks=[0,0.5,1].map(function(f){var v=ymax*f;return "<text x='"+(P-6)+"' y='"+(fy(v)+4).toFixed(1)+"' text-anchor='end' fill='var(--ink-faint)'>"+v.toFixed(2)+"</text>";}).join('');
+  var MAXLBL=12,stride=Math.max(1,Math.ceil(n/MAXLBL)),xlabels='';
+  for(var i=0;i<n;i+=stride){if(i===n-1)continue;xlabels+="<text x='"+fx(i).toFixed(1)+"' y='"+(H-P+16)+"' text-anchor='"+(i===0?'start':'middle')+"' fill='var(--ink-faint)'>"+esc(days[i].slice(5,10))+"</text>";}
+  xlabels+="<text x='"+fx(n-1).toFixed(1)+"' y='"+(H-P+16)+"' text-anchor='"+(n>1?'end':'start')+"' fill='var(--ink-faint)'>"+esc(days[n-1].slice(5,10))+"</text>";
+  xlabels+="<text x='"+(W-P)+"' y='"+(P-10)+"' text-anchor='end' fill='var(--ink-faint)'>Mtok / 1% ↑</text>";
+  var lines='',dots='';
+  models.forEach(function(m){
+    var col=cmap[m]||'var(--ink-faint)',run=[];
+    function flush(){if(run.length>=2)lines+=pathD(run.map(function(p){return [fx(p.i),fy(p.e)];}),col,false,'none',2);run=[];}
+    days.forEach(function(d,i){var c=data.series[m][d];if(c&&c.e!=null){run.push({i:i,e:c.e});var tip=esc(m+' · '+d+' · '+c.e.toFixed(2)+' Mtok/1% ('+fmtAbbr(c.t)+' tok / '+c.d.toFixed(1)+'%)');dots+="<circle cx='"+fx(i).toFixed(1)+"' cy='"+fy(c.e).toFixed(1)+"' r='3' fill='"+col+"' opacity='0.9'><title>"+tip+"</title></circle>";}else{flush();}});
+    flush();
+  });
+  return svgWrap(W,H,axes+yticks+xlabels+lines+dots,'chart');
+}
+var TY_ACTIVE=new Set(),TY_GAUGE='7d';
+function tyVisSet(data){return TY_ACTIVE.size?TY_ACTIVE:new Set(data.models);}
+function renderTYLegend(data){
+  var filtered=TY_ACTIVE.size>0,target=el('ty-legend');if(!target)return;
+  target.innerHTML=data.models.map(function(m){var off=filtered&&!TY_ACTIVE.has(m)?' off':'';var col=(CHART.colors&&CHART.colors[m])||'var(--ink-faint)';return '<button class="lg-item'+off+'" data-m="'+escAttr(m)+'"><span class="lg-swatch" style="background:'+col+'"></span>'+esc(m)+'</button>';}).join('')+'<button class="lg-all'+(filtered?'':' active')+'">all</button>';
+  target.querySelectorAll('button[data-m]').forEach(function(b){b.onclick=function(){_toggleTY(b.dataset.m);};});
+  target.querySelector('.lg-all').onclick=function(){TY_ACTIVE=new Set();renderTY();};
+}
+function _toggleTY(m){if(TY_ACTIVE.has(m))TY_ACTIVE.delete(m);else TY_ACTIVE.add(m);renderTY();}
+function showTY(v){TY_GAUGE=v;var b7=el('tybtn-7d'),b5=el('tybtn-5h');if(b7)b7.className=v==='7d'?'active':'';if(b5)b5.className=v==='5h'?'active':'';renderTY();}
+function renderTY(){
+  if(!CUR_AGG)return;
+  var gk=TY_GAUGE==='5h'?'r5':'r7',data=tokenYield(CUR_AGG.sessions,gk),lg=el('ty-legend');
+  if(!data.models.length){
+    if(lg)lg.innerHTML='';
+    el('sec-token-yield').innerHTML="<div class='empty-state'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M12 8h.01M11 12h1v4h1'/></svg><h4>No rate-limit data in range.</h4><p>Token yield needs Claude sessions carrying "+esc(TY_GAUGE)+" rate-limit % (forward-only, Claude.ai Pro/Max only). Non-Claude models draw separate quotas and are excluded.</p></div>";
+    el('sec-token-yield-summary').innerHTML='';return;
+  }
+  renderTYLegend(data);
+  var vis=tyVisSet(data),cmap=(CHART&&CHART.colors)||{};
+  el('sec-token-yield').innerHTML=svgTokenYield(data,cmap,vis)+"<p class='muted' style='margin-top:6px'>Mtok consumed per 1% of the "+esc(TY_GAUGE)+" window burned — per-session gauge deltas, reset-aware. Claude models only — they share the account 5h/7d quota, so lines compare each model's token density per quota point (higher = more tokens per 1%). Non-Claude models (separate quotas) are excluded; non-Pro/pre-statusline sessions carry no gauge.</p>";
+  var order=data.models.slice().sort(function(a,b){return data.agg[b].e-data.agg[a].e;}),map={};
+  order.forEach(function(m){map[m]=data.agg[m].e;});
+  el('sec-token-yield-summary').innerHTML="<div class='subhead' style='margin-top:10px'>Overall Mtok per 1% ("+esc(TY_GAUGE)+")</div>"+barChart(map,'var(--ac)',function(v){return v.toFixed(2)+' Mtok/%';},cmap);
 }
 
 // ---- view + theme toggles ----

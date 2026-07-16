@@ -200,7 +200,8 @@ const EFFICIENCY_HTML = `<header class='shead' id='sec-efficiency'><div class='s
 <div class='card rv'><div id='sec-throughput'></div></div>`;
 
 const RATE_LIMITS_HTML = `<header class='shead' id='sec-rate-limit-utilization-5h-7d'><div class='shead-title'><h2>Rate-limit utilization · 5h &amp; 7d</h2><span class='sub'>how close you run to the usage caps</span></div></header>
-<div class='card rv'><h3>5h / 7d usage-limit efficiency</h3><div id='sec-ratelimits'></div></div>
+<div class='card rv'><h3>5h / 7d usage-limit efficiency (Claude models only)</h3><div id='sec-ratelimits'></div></div>
+<div class='card rv'><h3>Token yield per rate-limit %</h3><div class='ctl-row'><div id='ty-legend' class='legend'></div><div class='toggle'><button id='tybtn-7d' class='active' onclick="showTY('7d')">7d</button><button id='tybtn-5h' onclick="showTY('5h')">5h</button></div></div><div id='sec-token-yield'></div><div id='sec-token-yield-summary'></div></div>
 <div class='card rv'><h3>Per-model weekly quotas</h3><div id='sec-model-quotas'></div></div>
 <div class='card rv'><h3>Rate-limit forecast at reset</h3><div id='sec-forecast'></div></div>`;
 
