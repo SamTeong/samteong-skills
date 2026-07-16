@@ -796,15 +796,53 @@ function setIsSubset(a, b) {
   return true;
 }
 
+const _dist = (vals) => {
+  const sv = vals.slice().sort((a, b) => a - b);
+  return {
+    p50: round4(_percentile(sv, 0.5)),
+    p90: round4(_percentile(sv, 0.9)),
+    mean: sv.length ? round4(sv.reduce((a, b) => a + b, 0) / sv.length) : 0.0,
+  };
+};
+
+// Build a categories{} object (cost/token/turn dists + OOS calibration + EB
+// shrinkage) from a {category: records[]} map. Reused for the global priors and
+// for each per-model-family split.
+function _categories_from(catsMap) {
+  const categories = {};
+  const cal_by_cat = {};
+  for (const [cat, recs] of Object.entries(catsMap)) {
+    const cal = recs.filter((r) => r.calibrated);
+    const cal_costs = cal.map((r) => r.cost);
+    cal_by_cat[cat] = cal_costs;
+    categories[cat] = {
+      n: recs.length,
+      n_cost: cal_costs.length,
+      cost: _dist(cal_costs),
+      out_tok: _dist(recs.map((r) => r.out)),
+      total_tok: _dist(recs.map((r) => r.tot)),
+      api_turns: _dist(recs.map((r) => r.api_turns)),
+      calibration: _calibrate_oos(cal),
+    };
+  }
+  _shrink_categories(categories, cal_by_cat);
+  return categories;
+}
+
 function _build_priors(files) {
-  const cats = {};
+  const cats = {};        // global — Anthropic-model ops only (default estimate)
+  const famCats = {};     // per price-family — includes third-party (glm/kimi)
+  const famSessions = {};
   const existing_cost = {};
+  const existing_model = {};
   if (isFile(STATS_CSV)) {
     const text = fs.readFileSync(STATS_CSV, "utf-8");
     for (const row of dictReader(text)) {
       const sid = (row.session_id || "").trim();
+      if (!sid) continue;
+      existing_model[sid] = (row.last_model || "").trim();
       const c = (row.total_cost_usd || "").trim();
-      if (sid && c) {
+      if (c) {
         const f = parseFloat(c);
         if (!Number.isNaN(f)) existing_cost[sid] = f;
       }
@@ -843,47 +881,41 @@ function _build_priors(files) {
     }
     const weights = segs.map((s) => _seg_weight(s));
     const sumw = weights.reduce((a, b) => a + b, 0);
-    const actual = existing_cost[sid];
+    // Session price-family. Third-party (glm/kimi via proxy) carries a wrong
+    // billed total_cost_usd, so use the token-priced cost (sumw) as the calibrated
+    // actual instead — the same PRICE table the report cost-override uses.
+    let fam = _price_key(existing_model[sid] || "");
+    if (_ANTHROPIC_PRICE_KEYS.has(fam)) {
+      // last_model can be blank in the CSV; fall back to the last seg with a model.
+      for (let k = segs.length - 1; k >= 0; k--) {
+        if (segs[k].model) { fam = _price_key(segs[k].model); break; }
+      }
+    }
+    const isTP = !_ANTHROPIC_PRICE_KEYS.has(fam);
+    const actual = isTP ? sumw : existing_cost[sid];
     const calibrated = actual !== undefined && actual > 0 && sumw > 0;
+    famSessions[fam] = (famSessions[fam] || 0) + 1;
     for (let idx = 0; idx < segs.length; idx++) {
       const seg = segs[idx];
       const w = weights[idx];
       const cost = calibrated ? (actual * w) / sumw : w;
       const cat = classify_segment(seg);
-      (cats[cat] = cats[cat] || []).push({
+      const rec = {
         cost, calibrated, out: seg.out, api_turns: seg.api_turns,
         tot: seg.in + seg.out + seg.cr + seg.cc,
         t: seg.start, // epoch; for the OOS hold-out ordering (Phase E)
-      });
+      };
+      (famCats[fam] = famCats[fam] || {});
+      (famCats[fam][cat] = famCats[fam][cat] || []).push(rec);
+      if (!isTP) (cats[cat] = cats[cat] || []).push(rec); // global excludes third-party
     }
   }
 
-  const dist = (vals) => {
-    const sv = vals.slice().sort((a, b) => a - b);
-    return {
-      p50: round4(_percentile(sv, 0.5)),
-      p90: round4(_percentile(sv, 0.9)),
-      mean: sv.length ? round4(sv.reduce((a, b) => a + b, 0) / sv.length) : 0.0,
-    };
-  };
-
-  const categories = {};
-  const _cal_by_cat = {};
-  for (const [cat, recs] of Object.entries(cats)) {
-    const cal = recs.filter((r) => r.calibrated);
-    const cal_costs = cal.map((r) => r.cost);
-    _cal_by_cat[cat] = cal_costs;
-    categories[cat] = {
-      n: recs.length,
-      n_cost: cal_costs.length,
-      cost: dist(cal_costs),
-      out_tok: dist(recs.map((r) => r.out)),
-      total_tok: dist(recs.map((r) => r.tot)),
-      api_turns: dist(recs.map((r) => r.api_turns)),
-      calibration: _calibrate_oos(cal),
-    };
+  const categories = _categories_from(cats);
+  const families = {};
+  for (const [fam, fc] of Object.entries(famCats)) {
+    families[fam] = { n_sessions: famSessions[fam] || 0, categories: _categories_from(fc) };
   }
-  _shrink_categories(categories, _cal_by_cat);
   let n_cost = 0;
   let n_ops = 0;
   for (const recs of Object.values(cats)) {
@@ -899,12 +931,13 @@ function _build_priors(files) {
     n_ops,
     n_ops_cost_calibrated: n_cost,
     cost_basis:
-      "per-op USD = session total_cost_usd redistributed across " +
-      "ops by token-price weight; non-Claude/local models weight 0. " +
-      "Absolute scale is real billed cost; price table sets only " +
-      "relative weights.",
+      "per-op USD = session cost redistributed across ops by token-price " +
+      "weight. Anthropic sessions use billed total_cost_usd; third-party " +
+      "(glm/kimi) use token-priced cost (their billed rate is wrong). Global " +
+      "`categories` = Anthropic only; `families` split by price-key incl. third-party.",
     price_per_mtok,
     categories,
+    families,
   };
   fs.writeFileSync(PRIORS_JSON, JSON.stringify(priors, null, 2), { encoding: "utf-8", mode: 0o600 });
   return priors;
@@ -1035,6 +1068,15 @@ function _print_priors(p) {
   if (flagged.length) {
     printErr(`p90 coverage < 0.70 (estimate p90 unreliable) for: ${flagged.join(", ")}`);
   }
+  const fams = Object.keys(p.families || {}).sort();
+  if (fams.length) {
+    print(`\nper-family priors (estimate --model <id>): ${fams.join(", ")}`);
+    for (const fam of fams) {
+      const fp = p.families[fam];
+      const tot = Object.values(fp.categories).reduce((a, c) => a + c.n, 0);
+      print(`  ${fam.padEnd(16)} sessions=${String(fp.n_sessions).padStart(4)}  ops=${String(tot).padStart(5)}`);
+    }
+  }
 }
 
 function cmd_priors() {
@@ -1094,12 +1136,27 @@ function cmd_estimate(args) {
     }
     p = JSON.parse(fs.readFileSync(PRIORS_JSON, "utf-8"));
   }
-  const cats = p.categories || {};
+  // Resolve the model first so we can pick per-family priors (estimate --model).
+  let model = args.model;
+  let ctx_tok = args.context_tokens;
+  if (ctx_tok === null || ctx_tok === undefined) {
+    const live = _latest_context();
+    if (live) { ctx_tok = live.tokens; model = model || live.model; }
+  }
+  const fam = model ? _price_key(model) : null;
+  const famPriors = fam && p.families && p.families[fam];
+  const cats = (famPriors && famPriors.categories) || p.categories || {};
   let cat = args.category;
   if (!(cat in cats)) {
     const hits = Object.keys(cats).filter((c) => c.startsWith(cat));
     if (hits.length === 1) {
       cat = hits[0];
+    } else if (famPriors) {
+      printErr(
+        `category '${args.category}' has no data for price-family ${fam} ` +
+        `(has: ${Object.keys(cats).sort().join(", ") || "none"}); omit --model for global priors.`
+      );
+      process.exit(1);
     } else {
       printErr(`unknown category '${args.category}'. choose: ${Object.keys(cats).sort().join(", ")}`);
       process.exit(1);
@@ -1109,6 +1166,8 @@ function cmd_estimate(args) {
   const cost = d.cost;
   const turns = d.api_turns.p50;
   print(`category: ${cat}  (n=${d.n}, cost-calibrated n=${d.n_cost ?? 0})`);
+  if (famPriors) print(`model: ${model}  (price-family ${fam}) — using per-family priors`);
+  else if (model) print(`model: ${model}  (family ${fam}) — no per-family priors; using global`);
   print(
     `historical cost:  p50 $${fixed(cost.p50, 2)}   p90 $${fixed(cost.p90, 2)}   mean $${fixed(cost.mean, 2)}`
   );
@@ -1133,15 +1192,6 @@ function cmd_estimate(args) {
     print("OOS calibration: — (need ≥15 cost-calibrated ops to hold out)");
   }
 
-  let ctx_tok = args.context_tokens;
-  let model = args.model;
-  if (ctx_tok === null || ctx_tok === undefined) {
-    const live = _latest_context();
-    if (live) {
-      ctx_tok = live.tokens;
-      model = model || live.model;
-    }
-  }
   if (ctx_tok) {
     const crp = PRICE[_price_key(model)][2];
     const floor = (ctx_tok * turns * crp) / 1e6;
@@ -1534,6 +1584,16 @@ function _ensure_fresh() {
 
 function cmd_report() {
   _ensure_fresh();
+  // Refresh the OAuth usage snapshot (5h/7d gauges + per-model quotas) each run,
+  // best-effort. Only when creds are present (logged in) so it's a silent no-op
+  // when logged out. Runs as a child (its exit(0)/stderr can't affect the report);
+  // --oauth bypasses the env gate so no USAGE_REPORT_OAUTH=1 is needed per run.
+  if (_read_access_token()) {
+    try {
+      execFileSync(process.execPath, [SCRIPT, "fetch-usage", "--oauth", "--save"],
+        { stdio: "ignore" });
+    } catch { /* best-effort: network/auth failure leaves the prior snapshot */ }
+  }
   if (!isFile(STATS_CSV)) {
     print(`stats.csv not found at ${STATS_CSV}. Run \`node ${SCRIPT} backfill\` first.`);
     process.exit(1);
