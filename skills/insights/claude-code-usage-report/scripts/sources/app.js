@@ -635,6 +635,9 @@ function renderTok(){
 // walk rl-bearing sessions in global time order, take per-session gauge DELTAS
 // (drop => window reset, delta = current pct), attribute each delta to that
 // session's own model, then efficiency = Sum(tokens)/Sum(delta%) = Mtok per 1%.
+// The FIRST reading only establishes the baseline (no prior to diff against) —
+// counting its full cumulative pct as a delta would over-charge whichever model
+// owns the earliest session, so it contributes neither tokens nor delta.
 // Aggregate ratio (not per-session) avoids divide-by-zero; skip when Sum(delta)<0.05.
 function tokenYield(S,gk){
   // Claude models only: r5/r7 is the shared Claude account 5h/7d quota. Non-Claude models
@@ -644,7 +647,7 @@ function tokenYield(S,gk){
   var rl=S.filter(function(s){return s[gk]>0&&/^claude/i.test(s.model||'');}).slice().sort(function(a,b){return a.ts<b.ts?-1:a.ts>b.ts?1:0;});
   var sumT={},sumD={},aggT={},aggD={},prev=null;
   rl.forEach(function(s){
-    var pct=s[gk],d=(prev==null)?pct:(pct>=prev?pct-prev:pct);prev=pct;
+    var pct=s[gk],d=(prev==null)?0:(pct>=prev?pct-prev:pct);prev=pct;
     if(d<=0)return;
     var m=s.model,day=s.ts.slice(0,10);
     (sumT[m]=sumT[m]||{})[day]=(sumT[m][day]||0)+s.tok;
